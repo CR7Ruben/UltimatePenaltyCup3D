@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf2a5f62cc98f544f92bdb962f529a11, type: 3}
+  m_Name: Ach_Champion
+  m_EditorClassIdentifier: 
+  id: CHAMPION
+  title: "Campe\xF3n"
+  description: Supera todas las 5 rondas y gana la Gran Final.
+  rewardCoins: 1500
+  rewardPoints: 1000
+  icon: {fileID: 0}

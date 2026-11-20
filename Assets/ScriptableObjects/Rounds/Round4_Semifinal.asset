@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a229fd6a5e5d1894097509ebb3decfb1, type: 3}
+  m_Name: Round4_Semifinal
+  m_EditorClassIdentifier: 
+  roundNumber: 4
+  roundName: Semifinal
+  description: "Ambiente de alta tensi\xF3n. Mal\xE1gon reacciona velozmente a disparos bombeados."
+  requiredGoals: 4
+  maxAttempts: 5
+  winPoints: 500
+  winCoins: 750
+  stadiumTheme: 1
+  goalkeeperName: "Mal\xE1gon"
+  goalkeeperTypeTitle: "Portero Dif\xEDcil"
+  reactionDelay: 0.16
+  moveSpeed: 7.5
+  diveSpeed: 9.5
+  errorProbability: 0.08
