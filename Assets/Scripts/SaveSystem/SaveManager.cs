@@ -180,6 +180,15 @@ namespace UltimatePenaltyCup.SaveSystem
             }
         }
 
+        public void UpdateHighScore(int matchScore)
+        {
+            if (CurrentData != null && matchScore > CurrentData.highScore)
+            {
+                CurrentData.highScore = matchScore;
+                Save();
+            }
+        }
+
         public void ResetAllData()
         {
             PlayerPrefs.DeleteKey(SAVE_KEY);

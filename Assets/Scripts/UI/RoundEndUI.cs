@@ -7,6 +7,7 @@ using UltimatePenaltyCup.Core;
 using UltimatePenaltyCup.Gameplay;
 using UltimatePenaltyCup.Audio;
 using UltimatePenaltyCup.Economy;
+using UltimatePenaltyCup.SaveSystem;
 
 namespace UltimatePenaltyCup.UI
 {
@@ -61,6 +62,8 @@ namespace UltimatePenaltyCup.UI
 
         public void ShowRoundEnd(bool isVictory, int goalsScored, int requiredGoals, int finalScore)
         {
+            SaveManager.Instance?.UpdateHighScore(finalScore);
+
             if (panelEndContainer != null) panelEndContainer.SetActive(true);
 
             int currentRound = GameManager.Instance != null ? GameManager.Instance.CurrentSelectedRoundNumber : 1;

@@ -277,6 +277,7 @@ MonoBehaviour:
   sphereCollider: {fileID: 0}
   meshRenderer: {fileID: 0}
   trailRenderer: {fileID: 0}
+  ballVfxParticles: {fileID: 0}
   matClassic: {fileID: 2100000, guid: a390d362871dd8849b88067c39c1d766, type: 2}
   matBlue: {fileID: 2100000, guid: 62bad4754af3412469a5e5aa916e86de, type: 2}
   matFire: {fileID: 2100000, guid: c0e642907deef944fa5f6c607f7b408f, type: 2}

@@ -725,27 +725,6 @@ namespace UltimatePenaltyCup.Editor
             PrefabUtility.SaveAsPrefabAsset(gk, prefabPath);
             GameObject.DestroyImmediate(gk);
         }
-            rightArm.tag = "Goalkeeper";
-            rightArm.transform.SetParent(gk.transform);
-            rightArm.transform.localPosition = new Vector3(0.48f, 1.35f, 0f);
-            rightArm.transform.localRotation = Quaternion.Euler(0f, 0f, -40f);
-            rightArm.transform.localScale = new Vector3(0.16f, 0.4f, 0.16f);
-            rightArm.GetComponent<Renderer>().material = matGkKit;
-
-            // Legs
-            GameObject legs = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            legs.name = "Legs";
-            legs.tag = "Goalkeeper";
-            legs.transform.SetParent(gk.transform);
-            legs.transform.localPosition = new Vector3(0f, 0.45f, 0f);
-            legs.transform.localScale = new Vector3(0.45f, 0.9f, 0.25f);
-            legs.GetComponent<Renderer>().material = matGkKit;
-
-            gk.AddComponent<GoalkeeperAI>();
-
-            PrefabUtility.SaveAsPrefabAsset(gk, prefabPath);
-            GameObject.DestroyImmediate(gk);
-        }
 
         private static void CreateStadiumPrefab()
         {

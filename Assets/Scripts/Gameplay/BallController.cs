@@ -19,6 +19,7 @@ namespace UltimatePenaltyCup.Gameplay
         [SerializeField] private SphereCollider sphereCollider;
         [SerializeField] private MeshRenderer meshRenderer;
         [SerializeField] private TrailRenderer trailRenderer;
+        [SerializeField] private ParticleSystem ballVfxParticles;
 
         [Header("Ball Customization Materials")]
         [SerializeField] private Material matClassic;
@@ -120,6 +121,12 @@ namespace UltimatePenaltyCup.Gameplay
                 };
                 trailRenderer.startColor = trailCol;
                 trailRenderer.endColor = new Color(trailCol.r, trailCol.g, trailCol.b, 0f);
+
+                if (ballVfxParticles != null)
+                {
+                    var main = ballVfxParticles.main;
+                    main.startColor = trailCol;
+                }
             }
         }
 
@@ -148,6 +155,11 @@ namespace UltimatePenaltyCup.Gameplay
                 trailRenderer.emitting = true;
             }
 
+            if (ballVfxParticles != null)
+            {
+                ballVfxParticles.Play();
+            }
+
             AudioManager.Instance?.PlaySfx(SfxType.S01_Kick);
         }
 
@@ -158,9 +170,12 @@ namespace UltimatePenaltyCup.Gameplay
 
             if (rb != null)
             {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
                 rb.isKinematic = true;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
             }
 
             transform.position = position;
@@ -170,6 +185,12 @@ namespace UltimatePenaltyCup.Gameplay
             {
                 trailRenderer.emitting = false;
                 trailRenderer.Clear();
+            }
+
+            if (ballVfxParticles != null)
+            {
+                ballVfxParticles.Stop();
+                ballVfxParticles.Clear();
             }
         }
 

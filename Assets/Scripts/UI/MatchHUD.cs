@@ -40,6 +40,15 @@ namespace UltimatePenaltyCup.UI
         [SerializeField] private Button btnPause;
         [SerializeField] private PauseUI pauseUI;
 
+        [Header("Shot Attempt Indicators")]
+        [SerializeField] private Image[] imgShotIndicators; // 5 circles
+
+        private static readonly Color ColorEmpty = new Color(0.3f, 0.3f, 0.35f, 0.9f);
+        private static readonly Color ColorGoal  = new Color(0.15f, 0.80f, 0.3f, 1f);
+        private static readonly Color ColorMiss  = new Color(0.85f, 0.2f, 0.2f, 1f);
+        private static readonly Color ColorSaved = new Color(0.9f, 0.5f, 0.1f, 1f);
+
+        private int currentAttemptIndex = 0;
         private Coroutine bannerCoroutine;
 
         private void Awake()
@@ -92,6 +101,12 @@ namespace UltimatePenaltyCup.UI
             if (powerBarContainer != null) powerBarContainer.SetActive(false);
             if (bannerResult != null) bannerResult.SetActive(false);
             if (txtStreak != null) txtStreak.gameObject.SetActive(false);
+
+            // Reset shot indicator circles to empty
+            currentAttemptIndex = 0;
+            if (imgShotIndicators != null)
+                foreach (var img in imgShotIndicators)
+                    if (img != null) img.color = ColorEmpty;
 
             ShowMessageBanner("¡Prepárate para disparar!", "Apunta con el mouse y mantén clic para cargar potencia", new Color(0.1f, 0.4f, 0.85f, 0.9f), 2.2f);
         }
@@ -164,6 +179,21 @@ namespace UltimatePenaltyCup.UI
 
         private void HandleAttemptFinished(ShotResult result, ShotScoreResult scoreResult, string msg)
         {
+            // Update shot indicator circle
+            if (imgShotIndicators != null && currentAttemptIndex < imgShotIndicators.Length)
+            {
+                Color indicatorColor = result switch
+                {
+                    ShotResult.GoalNormal    => ColorGoal,
+                    ShotResult.GoalCorner    => ColorGoal,
+                    ShotResult.GoalHighPower => ColorGoal,
+                    ShotResult.Saved         => ColorSaved,
+                    _                        => ColorMiss
+                };
+                if (imgShotIndicators[currentAttemptIndex] != null)
+                    imgShotIndicators[currentAttemptIndex].color = indicatorColor;
+                currentAttemptIndex++;
+            }
             Color bannerColor = new Color(0.2f, 0.2f, 0.2f, 0.9f);
             string subText = "";
 

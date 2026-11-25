@@ -57,13 +57,9 @@ namespace UltimatePenaltyCup.Economy
 
         public void AddPoints(int amount)
         {
-            if (amount <= 0 || SaveManager.Instance == null) return;
+            if (amount <= 0 || SaveManager.Instance == null || SaveManager.Instance.CurrentData == null) return;
 
             SaveManager.Instance.CurrentData.totalPoints += amount;
-            if (SaveManager.Instance.CurrentData.totalPoints > SaveManager.Instance.CurrentData.highScore)
-            {
-                SaveManager.Instance.CurrentData.highScore = SaveManager.Instance.CurrentData.totalPoints;
-            }
             SaveManager.Instance.Save();
             OnPointsChanged?.Invoke(SaveManager.Instance.CurrentData.totalPoints, amount);
         }
