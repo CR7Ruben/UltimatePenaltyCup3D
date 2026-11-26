@@ -82,10 +82,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.34
-  m_Height: 1.85
+  m_Radius: 0.22
+  m_Height: 1.25
   m_Direction: 1
-  m_Center: {x: 0, y: 0.95, z: 0}
+  m_Center: {x: 0, y: 0.82, z: 0}
 --- !u!114 &6838456784856078918
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -98,11 +98,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54d9aab2b4e324c4b8e5afad96a6c2b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Goalkeeper.GoalkeeperAI
-  reactionDelay: 0.24
-  moveSpeed: 4.2
-  diveSpeed: 5.4
-  errorProbability: 0.4
-  reachRadius: 0.78
+  reactionDelay: 0.15
+  moveSpeed: 5
+  diveSpeed: 5.8
+  errorProbability: 0.42
+  reachRadius: 0.68
   minX: -3.35
   maxX: 3.35
   minY: 0
@@ -111,16 +111,21 @@ MonoBehaviour:
   hips: {fileID: 8640814885932197386}
   spine: {fileID: 135278738459555915}
   chest: {fileID: 2596958485634044433}
+  neck: {fileID: 7073246350877710746}
   torso: {fileID: 2596958485634044433}
   head: {fileID: 6104698161269133381}
   leftArm: {fileID: 9129446555628364032}
   leftForearm: {fileID: 8292536367919551207}
+  leftHand: {fileID: 2397850981418783590}
   rightArm: {fileID: 9015820831754448493}
   rightForearm: {fileID: 8534855652060218459}
+  rightHand: {fileID: 909641277933737528}
   leftLeg: {fileID: 6317739461099776166}
   leftShin: {fileID: 6383268886625925719}
+  leftFoot: {fileID: 3332317895409841258}
   rightLeg: {fileID: 719929875797735129}
   rightShin: {fileID: 4593317261671968550}
+  rightFoot: {fileID: 4603825694369272406}
   leftGloveAnchor: {fileID: 2397850981418783590}
   rightGloveAnchor: {fileID: 909641277933737528}
 --- !u!1 &846706564221908071
@@ -644,8 +649,8 @@ SkinnedMeshRenderer:
   m_RootBone: {fileID: 8640814885932197386}
   m_AABB:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
-  m_DirtyAABB: 1
+    m_Extent: {x: 0.8, y: 1.15, z: 0.8}
+  m_DirtyAABB: 0
 --- !u!1 &5038743594609292761
 GameObject:
   m_ObjectHideFlags: 0

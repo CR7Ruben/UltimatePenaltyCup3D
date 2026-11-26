@@ -125,6 +125,12 @@ namespace UltimatePenaltyCup.SaveSystem
                 CurrentData.unlockedStadiums.Add(StadiumType.Cantera);
             }
 
+            if (CurrentData.useCustomStadiumOverride && !CurrentData.unlockedStadiums.Contains(CurrentData.selectedStadium))
+            {
+                CurrentData.selectedStadium = StadiumType.Cantera;
+                CurrentData.useCustomStadiumOverride = false;
+            }
+
             if (CurrentData.unlockedAchievements == null)
             {
                 CurrentData.unlockedAchievements = new System.Collections.Generic.List<string>();

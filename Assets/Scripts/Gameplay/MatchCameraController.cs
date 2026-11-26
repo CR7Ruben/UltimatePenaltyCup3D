@@ -9,13 +9,13 @@ namespace UltimatePenaltyCup.Gameplay
         public static MatchCameraController Instance { get; private set; }
 
         [Header("Broadcast Penalty Framing")]
-        [SerializeField] private Vector3 aimingPosition = new Vector3(0.62f, 2.02f, -15.35f);
-        [SerializeField] private Vector3 aimingLookTarget = new Vector3(0f, 1.25f, 0f);
-        [SerializeField] private Vector3 trackingDollyOffset = new Vector3(0f, 0.15f, 1.4f);
+        [SerializeField] private Vector3 aimingPosition = new Vector3(0.58f, 1.92f, -17.35f);
+        [SerializeField] private Vector3 aimingLookTarget = new Vector3(-0.08f, 1.05f, 0f);
+        [SerializeField] private Vector3 trackingDollyOffset = new Vector3(-0.10f, 0.12f, 1.85f);
 
         [SerializeField] private float followSpeed = 5.5f;
-        [SerializeField] private float aimFov = 46f;
-        [SerializeField] private float actionFov = 41f;
+        [SerializeField] private float aimFov = 49f;
+        [SerializeField] private float actionFov = 42f;
 
         private Camera cam;
         private bool isTrackingBall = false;

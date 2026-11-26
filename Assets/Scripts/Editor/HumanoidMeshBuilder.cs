@@ -99,16 +99,17 @@ namespace UltimatePenaltyCup.Editor
                 Ring(new Vector3(0f, 1.52f * h, 0f), 0.075f * b, 0.070f * b, 3, 2, 0.6f, 0.4f)
             }, jerseyUV: true);
 
-            // 2. SHORTS (Pelvis + thigh cuffs connected seamlessly)
-            BuildLoftedTube(ctx, 1, 14, new[]
+            // 2. SHORTS (Smooth anatomically contoured pelvis + thigh cuffs connected seamlessly)
+            BuildLoftedTube(ctx, 1, 16, new[]
             {
-                Ring(new Vector3(0f, 0.85f * h, 0f), 0.160f * b, 0.115f * b, 0, 11, 0.85f, 0.15f),
-                Ring(new Vector3(0f, 0.98f * h, 0f), 0.155f * b, 0.112f * b, 0, 1, 0.85f, 0.15f)
+                Ring(new Vector3(0f, 0.84f * h, 0f), 0.148f * b, 0.108f * b, 0, 11, 0.85f, 0.15f),
+                Ring(new Vector3(0f, 0.92f * h, 0f), 0.150f * b, 0.110f * b, 0, 1,  0.88f, 0.12f),
+                Ring(new Vector3(0f, 0.98f * h, 0f), 0.146f * b, 0.106f * b, 0, 1,  0.85f, 0.15f)
             });
-            BuildLimbTube(ctx, 1, 12, new Vector3(-0.105f * b, 0.89f * h, 0f), new Vector3(-0.105f * b, 0.70f * h, 0f),
-                0.092f * b, 0.088f * b, 0, 11, true);
-            BuildLimbTube(ctx, 1, 12, new Vector3(0.105f * b, 0.89f * h, 0f), new Vector3(0.105f * b, 0.70f * h, 0f),
-                0.092f * b, 0.088f * b, 0, 14, true);
+            BuildLimbTube(ctx, 1, 14, new Vector3(-0.102f * b, 0.90f * h, 0f), new Vector3(-0.105f * b, 0.69f * h, 0f),
+                0.088f * b, 0.080f * b, 0, 11, true);
+            BuildLimbTube(ctx, 1, 14, new Vector3(0.102f * b, 0.90f * h, 0f), new Vector3(0.105f * b, 0.69f * h, 0f),
+                0.088f * b, 0.080f * b, 0, 14, true);
 
             // 3. NECK (Pure Skin submesh 2)
             BuildLoftedTube(ctx, 2, 12, new[]
@@ -133,9 +134,18 @@ namespace UltimatePenaltyCup.Editor
             BuildLeg(ctx, isLeft: true, h, b, bones);
             BuildLeg(ctx, isLeft: false, h, b, bones);
 
-            // Construct final Unity Mesh
-            Mesh mesh = new Mesh();
+            // Construct/Update final Unity Mesh directly onto existing asset (never CopySerialized on Mesh!)
+            string savePath = Path.Combine(MODELS_DIR, assetName).Replace('\\', '/');
+            Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(savePath);
+            Mesh mesh = existing != null ? existing : new Mesh();
+            if (existing != null)
+            {
+                mesh.Clear(false);
+            }
             mesh.name = assetName.Replace(".asset", "");
+            mesh.indexFormat = ctx.vertices.Count > 65000
+                ? UnityEngine.Rendering.IndexFormat.UInt32
+                : UnityEngine.Rendering.IndexFormat.UInt16;
             mesh.SetVertices(ctx.vertices);
             mesh.SetUVs(0, ctx.uvs);
             mesh.subMeshCount = submeshes;
@@ -155,13 +165,11 @@ namespace UltimatePenaltyCup.Editor
 
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            mesh.UploadMeshData(false);
 
-            string savePath = Path.Combine(MODELS_DIR, assetName).Replace('\\', '/');
-            Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(savePath);
             if (existing != null)
             {
-                EditorUtility.CopySerialized(mesh, existing);
-                EditorUtility.SetDirty(existing);
+                EditorUtility.SetDirty(mesh);
             }
             else
             {
@@ -222,39 +230,115 @@ namespace UltimatePenaltyCup.Editor
 
             Vector3 hip = bones[bThigh].worldPos;
             Vector3 knee = bones[bShin].worldPos;
-            Vector3 sockTop = Vector3.Lerp(hip, knee, 0.88f);
+            Vector3 sockTop = Vector3.Lerp(hip, knee, 0.84f);
             Vector3 ankle = bones[bFoot].worldPos;
 
-            // Muscular thigh (Skin submesh 2) emerging cleanly out of shorts
-            Vector3 shortsExit = new Vector3(hip.x, 0.72f * h, 0f);
-            BuildLimbTube(ctx, 2, 14, shortsExit, sockTop, 0.078f * b, 0.062f * b, bThigh, bShin, true);
-
-            // Knee + Calf Soccer Sock (Socks submesh 5)
-            BuildLoftedTube(ctx, 5, 14, new[]
+            // Muscular tapered thigh (Skin submesh 2) emerging cleanly out of shorts down to knee
+            Vector3 shortsOverlap = new Vector3(hip.x, 0.74f * h, 0f);
+            BuildLoftedTube(ctx, 2, 16, new[]
             {
-                Ring(ankle, 0.044f * b, 0.046f * b, bFoot, bShin, 0.45f, 0.55f),
-                Ring(Vector3.Lerp(ankle, knee, 0.45f), 0.054f * b, 0.056f * b, bShin, bFoot, 0.85f, 0.15f),
-                Ring(Vector3.Lerp(ankle, knee, 0.72f), 0.064f * b, 0.065f * b, bShin, bThigh, 0.85f, 0.15f),
-                Ring(sockTop, 0.060f * b, 0.062f * b, bShin, bThigh, 0.55f, 0.45f)
+                Ring(sockTop, 0.058f * b, 0.060f * b, bShin, bThigh, 0.45f, 0.55f),
+                Ring(Vector3.Lerp(shortsOverlap, sockTop, 0.55f), 0.070f * b, 0.073f * b, bThigh, bShin, 0.85f, 0.15f),
+                Ring(shortsOverlap, 0.077f * b, 0.079f * b, bThigh, 0, 0.90f, 0.10f)
             });
 
-            // Sculpted Soccer Cleat / Boot (Boots submesh 6) sleek & grounded cleanly at y = 0.0f
-            Vector3 heel = new Vector3(ankle.x, 0.042f * h, -0.040f);
-            Vector3 midFoot = new Vector3(ankle.x, 0.040f * h, 0.042f);
-            Vector3 toeBox = new Vector3(ankle.x, 0.030f * h, 0.130f);
+            // Athletic Knee + Sculpted Calf Soccer Sock (Socks submesh 5)
+            BuildLoftedTube(ctx, 5, 16, new[]
+            {
+                Ring(new Vector3(ankle.x, 0.072f * h, 0f), 0.043f * b, 0.045f * b, bFoot, bShin, 0.45f, 0.55f),
+                Ring(Vector3.Lerp(ankle, knee, 0.35f), 0.050f * b, 0.052f * b, bShin, bFoot, 0.85f, 0.15f),
+                Ring(Vector3.Lerp(ankle, knee, 0.68f), 0.066f * b, 0.068f * b, bShin, bThigh, 0.88f, 0.12f),
+                Ring(Vector3.Lerp(ankle, knee, 0.92f), 0.060f * b, 0.062f * b, bShin, bThigh, 0.72f, 0.28f),
+                Ring(sockTop, 0.061f * b, 0.063f * b, bShin, bThigh, 0.55f, 0.45f)
+            });
 
-            BuildBoxyCapsule(ctx, 6, heel, new Vector3(0.086f * b, 0.076f * h, 0.082f), bFoot, bShin, 0.85f);
-            BuildBoxyCapsule(ctx, 6, midFoot, new Vector3(0.090f * b, 0.070f * h, 0.105f), bFoot, bShin, 0.95f);
-            BuildBoxyCapsule(ctx, 6, toeBox, new Vector3(0.082f * b, 0.050f * h, 0.085f), bFoot, bShin, 1.0f);
+            // Sleek Sculpted Soccer Boot / Cleat (Boots submesh 6) — unified contoured silhouette grounded cleanly at y = 0
+            BuildSculptedBoot(ctx, 6, ankle.x, h, b, bFoot, bShin);
+        }
 
-            // 6 subtle low cleats touching y = 0.00m
+        private static void BuildSculptedBoot(MeshBuilderContext ctx, int submesh, float xOffset, float h, float b, int bFoot, int bShin)
+        {
+            int radialSegs = 14;
+            int baseV = ctx.vertices.Count;
+            var tris = ctx.submeshTris[submesh];
+
+            // Contoured profile along length Z: heel (-0.075) -> collar -> instep -> forefoot -> toe (+0.175)
+            (float z, float cy, float rx, float ry, float wFoot)[] profile =
+            {
+                (-0.078f, 0.046f * h, 0.036f * b, 0.036f * h, 0.82f),
+                (-0.045f, 0.052f * h, 0.044f * b, 0.044f * h, 0.86f),
+                ( 0.005f, 0.055f * h, 0.046f * b, 0.045f * h, 0.90f),
+                ( 0.060f, 0.044f * h, 0.048f * b, 0.034f * h, 0.96f),
+                ( 0.120f, 0.035f * h, 0.045f * b, 0.025f * h, 1.00f),
+                ( 0.165f, 0.026f * h, 0.032f * b, 0.017f * h, 1.00f),
+                ( 0.184f, 0.020f * h, 0.014f * b, 0.009f * h, 1.00f)
+            };
+
+            for (int r = 0; r < profile.Length; r++)
+            {
+                var p = profile[r];
+                float v = r / (float)(profile.Length - 1);
+                for (int i = 0; i <= radialSegs; i++)
+                {
+                    float ang = (i / (float)radialSegs) * Mathf.PI * 2f;
+                    float cos = Mathf.Cos(ang);
+                    float sin = Mathf.Sin(ang);
+                    // Flatten sole bottom cleanly around y = 0.008*h so boot plants naturally on turf
+                    float dy = sin < 0f ? sin * p.ry * 0.72f : sin * p.ry;
+                    float py = Mathf.Max(0.008f * h, p.cy + dy);
+                    ctx.vertices.Add(new Vector3(xOffset + cos * p.rx, py, p.z));
+                    ctx.uvs.Add(new Vector2(i / (float)radialSegs, v));
+                    ctx.weights.Add(MakeWeight(bFoot, p.wFoot, bShin, 1f - p.wFoot));
+                }
+            }
+
+            int stride = radialSegs + 1;
+            for (int r = 0; r < profile.Length - 1; r++)
+            {
+                for (int i = 0; i < radialSegs; i++)
+                {
+                    int a = baseV + r * stride + i;
+                    int c = a + 1;
+                    int d = a + stride;
+                    int e = d + 1;
+                    tris.Add(a); tris.Add(c); tris.Add(d);
+                    tris.Add(c); tris.Add(e); tris.Add(d);
+                }
+            }
+
+            // Cap heel & toe
+            int heelCap = ctx.vertices.Count;
+            ctx.vertices.Add(new Vector3(xOffset, 0.044f * h, -0.088f));
+            ctx.uvs.Add(new Vector2(0f, 0f));
+            ctx.weights.Add(MakeWeight(bFoot, 0.85f, bShin, 0.15f));
+
+            int toeCap = ctx.vertices.Count;
+            ctx.vertices.Add(new Vector3(xOffset, 0.018f * h, 0.192f));
+            ctx.uvs.Add(new Vector2(1f, 1f));
+            ctx.weights.Add(MakeWeight(bFoot, 1f, bShin, 0f));
+
+            int lastRingBase = baseV + (profile.Length - 1) * stride;
+            for (int i = 0; i < radialSegs; i++)
+            {
+                tris.Add(heelCap); tris.Add(baseV + i + 1); tris.Add(baseV + i);
+                tris.Add(toeCap); tris.Add(lastRingBase + i); tris.Add(lastRingBase + i + 1);
+            }
+
+            // Ankle cuff collar bridge into sock
+            BuildLoftedTube(ctx, submesh, 12, new[]
+            {
+                Ring(new Vector3(xOffset, 0.062f * h, -0.01f), 0.046f * b, 0.052f * b, bFoot, bShin, 0.8f, 0.2f),
+                Ring(new Vector3(xOffset, 0.088f * h,  0.00f), 0.044f * b, 0.047f * b, bFoot, bShin, 0.6f, 0.4f)
+            });
+
+            // Low-profile molded cleats touching y = 0.00m
             for (int sx = -1; sx <= 1; sx += 2)
             {
                 for (int sz = 0; sz < 3; sz++)
                 {
-                    float zPos = -0.04f + sz * 0.08f;
-                    BuildBoxyCapsule(ctx, 6, new Vector3(ankle.x + sx * 0.026f * b, 0.006f * h, zPos),
-                        new Vector3(0.012f, 0.012f, 0.012f), bFoot, bFoot, 1.0f);
+                    float zPos = -0.045f + sz * 0.08f;
+                    BuildBoxyCapsule(ctx, submesh, new Vector3(xOffset + sx * 0.024f * b, 0.005f * h, zPos),
+                        new Vector3(0.011f, 0.010f, 0.014f), bFoot, bFoot, 1.0f);
                 }
             }
         }
@@ -274,6 +358,14 @@ namespace UltimatePenaltyCup.Editor
 
         private static void BuildLoftedTube(MeshBuilderContext ctx, int submesh, int radialSegs, RingSpec[] rings, bool jerseyUV = false)
         {
+            if (jerseyUV)
+            {
+                // Split front (+Z) and back (-Z) hemispheres cleanly so NO side triangle stretches across [0.46 -> 0.96]
+                BuildLoftedHemisphere(ctx, submesh, Mathf.Max(8, radialSegs / 2), rings, isFront: true);
+                BuildLoftedHemisphere(ctx, submesh, Mathf.Max(8, radialSegs / 2), rings, isFront: false);
+                return;
+            }
+
             int ringCount = rings.Length;
             int baseVertex = ctx.vertices.Count;
             var tris = ctx.submeshTris[submesh];
@@ -290,19 +382,7 @@ namespace UltimatePenaltyCup.Editor
                     Vector3 pos = rs.center + new Vector3(cos * rs.rx, 0f, sin * rs.rz);
 
                     ctx.vertices.Add(pos);
-                    if (jerseyUV)
-                    {
-                        // Front hemisphere (+Z, sin >= 0) maps left-to-right [0.04..0.46];
-                        // Back hemisphere (-Z, sin < 0) maps left-to-right from viewer behind (+X on right!) [0.54..0.96]
-                        float u = sin >= 0f
-                            ? Mathf.Lerp(0.04f, 0.46f, (cos + 1f) * 0.5f)
-                            : Mathf.Lerp(0.54f, 0.96f, (cos + 1f) * 0.5f);
-                        ctx.uvs.Add(new Vector2(u, v));
-                    }
-                    else
-                    {
-                        ctx.uvs.Add(new Vector2(i / (float)radialSegs, v));
-                    }
+                    ctx.uvs.Add(new Vector2(i / (float)radialSegs, v));
                     ctx.weights.Add(MakeWeight(rs.boneA, rs.wA, rs.boneB, rs.wB));
                 }
             }
@@ -311,6 +391,54 @@ namespace UltimatePenaltyCup.Editor
             for (int r = 0; r < ringCount - 1; r++)
             {
                 for (int i = 0; i < radialSegs; i++)
+                {
+                    int a = baseVertex + r * stride + i;
+                    int b = a + 1;
+                    int c = a + stride;
+                    int d = c + 1;
+
+                    tris.Add(a); tris.Add(c); tris.Add(b);
+                    tris.Add(b); tris.Add(c); tris.Add(d);
+                }
+            }
+        }
+
+        private static void BuildLoftedHemisphere(MeshBuilderContext ctx, int submesh, int halfSegs, RingSpec[] rings, bool isFront)
+        {
+            int ringCount = rings.Length;
+            int baseVertex = ctx.vertices.Count;
+            var tris = ctx.submeshTris[submesh];
+
+            float thetaStart = isFront ? 0f : Mathf.PI;
+            float thetaEnd = isFront ? Mathf.PI : Mathf.PI * 2f;
+
+            for (int r = 0; r < ringCount; r++)
+            {
+                float v = r / (float)(ringCount - 1);
+                var rs = rings[r];
+                for (int i = 0; i <= halfSegs; i++)
+                {
+                    float theta = Mathf.Lerp(thetaStart, thetaEnd, i / (float)halfSegs);
+                    float cos = Mathf.Cos(theta);
+                    float sin = Mathf.Sin(theta);
+                    Vector3 pos = rs.center + new Vector3(cos * rs.rx, 0f, sin * rs.rz);
+
+                    // Front (+Z): camera at +Z sees +X on left, -X on right -> (1 - cos)*0.5 goes 0..1 across front left->right [0.04..0.46]
+                    // Back  (-Z): camera at -Z sees -X on left, +X on right -> (cos + 1)*0.5 goes 0..1 across back  left->right [0.54..0.96] ("1" then "0" = "10"!)
+                    float u = isFront
+                        ? Mathf.Lerp(0.04f, 0.46f, (1f - cos) * 0.5f)
+                        : Mathf.Lerp(0.54f, 0.96f, (cos + 1f) * 0.5f);
+
+                    ctx.vertices.Add(pos);
+                    ctx.uvs.Add(new Vector2(u, v));
+                    ctx.weights.Add(MakeWeight(rs.boneA, rs.wA, rs.boneB, rs.wB));
+                }
+            }
+
+            int stride = halfSegs + 1;
+            for (int r = 0; r < ringCount - 1; r++)
+            {
+                for (int i = 0; i < halfSegs; i++)
                 {
                     int a = baseVertex + r * stride + i;
                     int b = a + 1;
@@ -466,11 +594,11 @@ namespace UltimatePenaltyCup.Editor
                     float y = cosPhi;
                     float z = Mathf.Cos(theta) * sinPhi;
 
-                    float crestBoost = (!isGoalkeeper && z > -0.2f && y > 0.35f && Mathf.Abs(x) < 0.45f)
-                        ? 0.025f * (1f - Mathf.Abs(x) / 0.45f)
+                    float crestBoost = (!isGoalkeeper && z > -0.25f && y > 0.45f && Mathf.Abs(x) < 0.55f)
+                        ? 0.011f * Mathf.Cos((x / 0.55f) * Mathf.PI * 0.5f) * Mathf.SmoothStep(0.45f, 0.9f, y)
                         : 0f;
 
-                    Vector3 pos = headCenter + new Vector3(x * rx, y * ry + crestBoost + 0.008f, z * rz - 0.012f);
+                    Vector3 pos = headCenter + new Vector3(x * rx, y * ry + crestBoost + 0.005f, z * rz - 0.012f);
                     // Pull front hairline back behind forehead
                     if (z > 0.45f && y < 0.55f)
                     {

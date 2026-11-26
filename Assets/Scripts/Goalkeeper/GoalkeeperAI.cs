@@ -12,6 +12,7 @@ namespace UltimatePenaltyCup.Goalkeeper
     {
         Idle,
         Ready,
+        Anticipating,
         Reacting,
         DivingLeft,
         DivingRight,
@@ -20,16 +21,30 @@ namespace UltimatePenaltyCup.Goalkeeper
         Resetting
     }
 
+    public enum GoalkeeperDiveStyle
+    {
+        None,
+        LowLeft,
+        MidLeft,
+        HighLeft,
+        LowRight,
+        MidRight,
+        HighRight,
+        HighVerticalJump,
+        FrontalCatch,
+        LegBlock
+    }
+
     public class GoalkeeperAI : MonoBehaviour
     {
         public static GoalkeeperAI Instance { get; private set; }
 
         [Header("Tuning (Set dynamically by RoundDataSO)")]
-        [SerializeField] private float reactionDelay = 0.24f;
-        [SerializeField] private float moveSpeed = 4.2f;
-        [SerializeField] private float diveSpeed = 5.4f;
-        [SerializeField] private float errorProbability = 0.40f;
-        [SerializeField] private float reachRadius = 0.78f;
+        [SerializeField] private float reactionDelay = 0.15f;
+        [SerializeField] private float moveSpeed = 5.0f;
+        [SerializeField] private float diveSpeed = 5.8f;
+        [SerializeField] private float errorProbability = 0.42f;
+        [SerializeField] private float reachRadius = 0.68f;
 
         [Header("Goal Bounds")]
         [SerializeField] private float minX = -3.35f;
@@ -42,23 +57,30 @@ namespace UltimatePenaltyCup.Goalkeeper
         [SerializeField] private Transform hips;
         [SerializeField] private Transform spine;
         [SerializeField] private Transform chest;
+        [SerializeField] private Transform neck;
         [SerializeField] private Transform torso;
         [SerializeField] private Transform head;
         [SerializeField] private Transform leftArm;
         [SerializeField] private Transform leftForearm;
+        [SerializeField] private Transform leftHand;
         [SerializeField] private Transform rightArm;
         [SerializeField] private Transform rightForearm;
+        [SerializeField] private Transform rightHand;
         [SerializeField] private Transform leftLeg;
         [SerializeField] private Transform leftShin;
+        [SerializeField] private Transform leftFoot;
         [SerializeField] private Transform rightLeg;
         [SerializeField] private Transform rightShin;
+        [SerializeField] private Transform rightFoot;
 
         [Header("Glove Intercept Anchors")]
         [SerializeField] private Transform leftGloveAnchor;
         [SerializeField] private Transform rightGloveAnchor;
 
         public GoalkeeperState CurrentState { get; private set; } = GoalkeeperState.Idle;
+        public GoalkeeperDiveStyle ActiveDiveStyle { get; private set; } = GoalkeeperDiveStyle.None;
         public bool HasDived { get; private set; } = false;
+        public bool IsRecoveringFromDive { get; private set; } = false;
 
         private Rigidbody rb;
         private Vector3 startPosition;
@@ -70,6 +92,7 @@ namespace UltimatePenaltyCup.Goalkeeper
 
         private Coroutine reactionCoroutine;
         private Coroutine idleShuffleCoroutine;
+        private Coroutine anticipationCoroutine;
         private Coroutine animCoroutine;
         private Coroutine resetCoroutine;
 
@@ -87,12 +110,21 @@ namespace UltimatePenaltyCup.Goalkeeper
             }
             startPosition = transform.position;
             startRotation = transform.rotation;
+            AutoAssignRigReferences();
+            if (hips != null)
+            {
+                hipsBaseLocalPos = hips.localPosition;
+                if (hipsBaseLocalPos.y < 0.2f) hipsBaseLocalPos = new Vector3(0f, 0.99f, 0f);
+            }
         }
 
         private void Start()
         {
             AutoAssignRigReferences();
-            if (hips != null) hipsBaseLocalPos = hips.localPosition;
+            if (hips != null && hipsBaseLocalPos.y < 0.2f)
+            {
+                hipsBaseLocalPos = hips.localPosition.y >= 0.2f ? hips.localPosition : new Vector3(0f, 0.99f, 0f);
+            }
             StartIdleShuffle();
         }
 
@@ -105,6 +137,7 @@ namespace UltimatePenaltyCup.Goalkeeper
         {
             if (reactionCoroutine != null) { StopCoroutine(reactionCoroutine); reactionCoroutine = null; }
             if (idleShuffleCoroutine != null) { StopCoroutine(idleShuffleCoroutine); idleShuffleCoroutine = null; }
+            if (anticipationCoroutine != null) { StopCoroutine(anticipationCoroutine); anticipationCoroutine = null; }
             if (animCoroutine != null) { StopCoroutine(animCoroutine); animCoroutine = null; }
             if (resetCoroutine != null) { StopCoroutine(resetCoroutine); resetCoroutine = null; }
         }
@@ -116,19 +149,24 @@ namespace UltimatePenaltyCup.Goalkeeper
             hips = hips ?? FindBone(bodyRoot, "Hips");
             spine = spine ?? FindBone(bodyRoot, "Spine");
             chest = chest ?? FindBone(bodyRoot, "Chest");
+            neck = neck ?? FindBone(bodyRoot, "Neck");
             torso = torso ?? chest ?? spine ?? FindBone(bodyRoot, "Torso");
             head = head ?? FindBone(bodyRoot, "Head");
             leftArm = leftArm ?? FindBone(bodyRoot, "LeftUpperArm") ?? FindBone(bodyRoot, "Arm_Left");
             leftForearm = leftForearm ?? FindBone(bodyRoot, "LeftForearm");
+            leftHand = leftHand ?? FindBone(bodyRoot, "LeftHand");
             rightArm = rightArm ?? FindBone(bodyRoot, "RightUpperArm") ?? FindBone(bodyRoot, "Arm_Right");
             rightForearm = rightForearm ?? FindBone(bodyRoot, "RightForearm");
+            rightHand = rightHand ?? FindBone(bodyRoot, "RightHand");
             leftLeg = leftLeg ?? FindBone(bodyRoot, "LeftThigh") ?? FindBone(bodyRoot, "Leg_Left");
             leftShin = leftShin ?? FindBone(bodyRoot, "LeftShin");
+            leftFoot = leftFoot ?? FindBone(bodyRoot, "LeftFoot");
             rightLeg = rightLeg ?? FindBone(bodyRoot, "RightThigh") ?? FindBone(bodyRoot, "Leg_Right");
             rightShin = rightShin ?? FindBone(bodyRoot, "RightShin");
+            rightFoot = rightFoot ?? FindBone(bodyRoot, "RightFoot");
 
-            leftGloveAnchor = leftGloveAnchor ?? FindBone(bodyRoot, "LeftHand") ?? FindBone(bodyRoot, "GoalkeeperGlove_L");
-            rightGloveAnchor = rightGloveAnchor ?? FindBone(bodyRoot, "RightHand") ?? FindBone(bodyRoot, "GoalkeeperGlove_R");
+            leftGloveAnchor = leftGloveAnchor ?? leftHand ?? FindBone(bodyRoot, "GoalkeeperGlove_L");
+            rightGloveAnchor = rightGloveAnchor ?? rightHand ?? FindBone(bodyRoot, "GoalkeeperGlove_R");
         }
 
         private Transform FindBone(Transform root, string boneName)
@@ -152,15 +190,52 @@ namespace UltimatePenaltyCup.Goalkeeper
                 moveSpeed = roundData.moveSpeed;
                 diveSpeed = roundData.diveSpeed;
                 errorProbability = roundData.errorProbability;
-                reachRadius = 0.68f + (roundData.roundNumber - 1) * 0.09f; // 0.68m in R1 -> 1.04m in R5
+                reachRadius = 0.68f + (roundData.roundNumber - 1) * 0.08f;
             }
         }
 
         public void StartIdleShuffle()
         {
             if (idleShuffleCoroutine != null) StopCoroutine(idleShuffleCoroutine);
+            if (anticipationCoroutine != null) { StopCoroutine(anticipationCoroutine); anticipationCoroutine = null; }
+            ActiveDiveStyle = GoalkeeperDiveStyle.None;
+            IsRecoveringFromDive = false;
             CurrentState = GoalkeeperState.Ready;
             idleShuffleCoroutine = StartCoroutine(IdleShuffleRoutine());
+        }
+
+        /// <summary>
+        /// Triggered immediately when the kicker begins run-up so the goalkeeper performs an athletic split-step
+        /// and plants ready to explode instead of randomly shuffling off-center.
+        /// </summary>
+        public void OnKickerRunUpStarted(Vector3 ballPos)
+        {
+            if (!isActiveAndEnabled || isShotActive) return;
+            if (idleShuffleCoroutine != null) { StopCoroutine(idleShuffleCoroutine); idleShuffleCoroutine = null; }
+            if (anticipationCoroutine != null) { StopCoroutine(anticipationCoroutine); anticipationCoroutine = null; }
+            CurrentState = GoalkeeperState.Anticipating;
+            anticipationCoroutine = StartCoroutine(AnticipationSplitStepRoutine(ballPos));
+        }
+
+        private IEnumerator AnticipationSplitStepRoutine(Vector3 ballPos)
+        {
+            float elapsed = 0f;
+            Vector3 fromP = transform.position;
+            // Subtle center-recovery step as kicker approaches
+            float targetX = Mathf.Lerp(fromP.x, startPosition.x + Mathf.Clamp(ballPos.x * 0.25f, -0.35f, 0.35f), 0.72f);
+
+            while (!isShotActive && elapsed < 0.6f)
+            {
+                float dt = Time.deltaTime;
+                elapsed += dt;
+                float hop = elapsed < 0.14f ? Mathf.Sin((elapsed / 0.14f) * Mathf.PI) * 0.06f : 0f;
+                float curX = Mathf.Lerp(fromP.x, targetX, Mathf.Clamp01(elapsed / 0.18f));
+                MoveRoot(new Vector3(curX, startPosition.y + hop, startPosition.z), startRotation);
+
+                float blend = 1f - Mathf.Exp(-18f * dt);
+                ApplyAthleticCrouchPose(blend, crouchDepth: 0.14f, torsoTiltX: 18f, kneeBend: 46f, headYaw: 0f, swayX: 0f);
+                yield return null;
+            }
         }
 
         private IEnumerator IdleShuffleRoutine()
@@ -168,83 +243,142 @@ namespace UltimatePenaltyCup.Goalkeeper
             float timer = 0f;
             while (!isShotActive)
             {
-                timer += Time.deltaTime * 2.8f;
-                float shuffleAmp = 0.45f + (currentRoundNumber - 1) * 0.05f;
+                float dt = Time.deltaTime;
+                timer += dt * (2.6f + currentRoundNumber * 0.12f);
+                float shuffleAmp = 0.36f + (currentRoundNumber - 1) * 0.04f;
                 float offsetX = Mathf.Sin(timer) * shuffleAmp;
-                Vector3 nextPos = new Vector3(startPosition.x + offsetX, startPosition.y, startPosition.z);
+                float stepBounce = Mathf.Abs(Mathf.Cos(timer)) * 0.035f;
+                Vector3 nextPos = new Vector3(startPosition.x + offsetX, startPosition.y + stepBounce, startPosition.z);
                 MoveRoot(nextPos, startRotation);
 
-                // Athletic goalie crouch stance (knees bent, chest forward, gloves ready) with smooth blending
-                float dt = Time.deltaTime;
                 float blend = 1f - Mathf.Exp(-14f * dt);
-                float crouch = Mathf.Abs(Mathf.Sin(timer * 2f)) * 0.05f;
-                if (hips != null)
-                {
-                    hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y - 0.08f - crouch, hipsBaseLocalPos.z), blend);
-                    hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.identity, blend);
-                }
-                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(14f, 0f, 0f), blend);
-                if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(10f, 0f, 0f), blend);
-                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-18f, 0f, 0f), blend);
-
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-22f, 0f, -8f), blend);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(34f, 0f, 0f), blend);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-22f, 0f, 8f), blend);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(34f, 0f, 0f), blend);
-
-                float armBob = Mathf.Sin(timer * 2f) * 6f;
-                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-38f, 15f, -32f + armBob), blend);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-55f, 0f, 0f), blend);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-38f, -15f, 32f - armBob), blend);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-55f, 0f, 0f), blend);
+                float weightShiftRoll = -Mathf.Cos(timer) * 4.5f;
+                float legStepPhase = Mathf.Sin(timer * 2f) * 12f;
+                ApplyAthleticCrouchPose(blend, crouchDepth: 0.09f + Mathf.Abs(Mathf.Sin(timer * 2f)) * 0.03f,
+                    torsoTiltX: 15f, kneeBend: 36f, headYaw: Mathf.Cos(timer) * 6f, swayX: weightShiftRoll, legStep: legStepPhase);
 
                 yield return null;
             }
         }
 
+        private void ApplyAthleticCrouchPose(float blend, float crouchDepth, float torsoTiltX, float kneeBend, float headYaw, float swayX, float legStep = 0f)
+        {
+            if (hips != null)
+            {
+                hips.localPosition = Vector3.Lerp(hips.localPosition,
+                    new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y - crouchDepth, hipsBaseLocalPos.z), blend);
+                hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.Euler(0f, 0f, swayX), blend);
+            }
+            if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(torsoTiltX, 0f, 0f), blend);
+            if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(torsoTiltX * 0.65f, 0f, 0f), blend);
+            if (neck != null) neck.localRotation = Quaternion.Slerp(neck.localRotation, Quaternion.Euler(-torsoTiltX * 0.45f, 0f, 0f), blend);
+            if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-torsoTiltX * 0.7f, headYaw, 0f), blend);
+
+            // Wide athletic ready stance: bent knees + counter-angled ankles
+            if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-kneeBend * 0.65f + legStep, 0f, -10f), blend);
+            if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(kneeBend, 0f, 0f), blend);
+            if (leftFoot != null) leftFoot.localRotation = Quaternion.Slerp(leftFoot.localRotation, Quaternion.Euler(-kneeBend * 0.35f, 0f, 8f), blend);
+
+            if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-kneeBend * 0.65f - legStep, 0f, 10f), blend);
+            if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(kneeBend, 0f, 0f), blend);
+            if (rightFoot != null) rightFoot.localRotation = Quaternion.Slerp(rightFoot.localRotation, Quaternion.Euler(-kneeBend * 0.35f, 0f, -8f), blend);
+
+            // Gloves poised forward in chest/waist corridor
+            if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-38f, 18f, -34f), blend);
+            if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-62f, 0f, 0f), blend);
+            if (leftHand != null) leftHand.localRotation = Quaternion.Slerp(leftHand.localRotation, Quaternion.Euler(-14f, 18f, 0f), blend);
+
+            if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-38f, -18f, 34f), blend);
+            if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-62f, 0f, 0f), blend);
+            if (rightHand != null) rightHand.localRotation = Quaternion.Slerp(rightHand.localRotation, Quaternion.Euler(-14f, -18f, 0f), blend);
+        }
+
         public void OnShotFired(Vector3 ballPos, Vector3 shotVelocity, float power)
         {
+            if (!isActiveAndEnabled) return;
             StopAllGoalkeeperCoroutines();
             isShotActive = true;
             hasSavedCurrentShot = false;
             HasDived = false;
+            IsRecoveringFromDive = false;
+            ActiveDiveStyle = GoalkeeperDiveStyle.None;
             CurrentState = GoalkeeperState.Reacting;
 
             reactionCoroutine = StartCoroutine(ReactToShotRoutine(ballPos, shotVelocity, power));
         }
 
+        private void PredictBallArrival(Vector3 ballPos, Vector3 shotVelocity, float power, out float predictedX, out float predictedY, out float timeToGoal)
+        {
+            const float dt = 0.02f;
+            float dampMul = Mathf.Clamp01(1f - BallController.LinearDampingValue * dt);
+            Vector3 angularVel = new Vector3(0f, -ballPos.x * 0.2f, 0f);
+            Vector3 pos = ballPos;
+            Vector3 vel = shotVelocity;
+            timeToGoal = 0f;
+
+            for (int step = 0; step < 120; step++)
+            {
+                Vector3 prevPos = pos;
+                float prevT = timeToGoal;
+                Vector3 magnus = BallController.ComputeMagnusAccel(vel, angularVel);
+                vel += (Physics.gravity + magnus) * dt;
+                vel *= dampMul;
+                pos += vel * dt;
+                timeToGoal += dt;
+
+                if (pos.z >= startPosition.z)
+                {
+                    float denom = pos.z - prevPos.z;
+                    float frac = Mathf.Abs(denom) > 0.0001f ? Mathf.Clamp01((startPosition.z - prevPos.z) / denom) : 1f;
+                    Vector3 hit = Vector3.Lerp(prevPos, pos, frac);
+                    timeToGoal = Mathf.Clamp(Mathf.Lerp(prevT, timeToGoal, frac), 0.14f, 1.4f);
+                    predictedX = hit.x;
+                    predictedY = hit.y;
+                    return;
+                }
+            }
+
+            predictedX = pos.x;
+            predictedY = pos.y;
+            timeToGoal = Mathf.Clamp(timeToGoal, 0.14f, 1.4f);
+        }
+
         private IEnumerator ReactToShotRoutine(Vector3 ballPos, Vector3 shotVelocity, float power)
         {
-            // Keep eyes locked and tense crouch during human reaction time
-            yield return new WaitForSeconds(reactionDelay);
+            PredictBallArrival(ballPos, shotVelocity, power, out float predictedX, out float predictedY, out float timeToGoal);
 
-            float dz = startPosition.z - ballPos.z;
-            float vz = Mathf.Max(1.0f, shotVelocity.z);
-            float timeToGoal = Mathf.Clamp(dz / vz, 0.12f, 1.5f);
-
-            // Predict exact ball position when it crosses goalkeeper's Z plane
-            float predictedX = ballPos.x + shotVelocity.x * timeToGoal;
-            float predictedY = ballPos.y + shotVelocity.y * timeToGoal - 0.5f * 9.81f * timeToGoal * timeToGoal;
-
-            // Apply round-based goalkeeper error margin (central shots rarely misjudged)
-            bool isWideShot = Mathf.Abs(predictedX) > 1.0f;
-            float effectiveError = isWideShot ? errorProbability : errorProbability * 0.35f;
-
-            if (UnityEngine.Random.value < effectiveError)
+            // Human visual perception delay before launching explosive push-off (track ball eyes/head)
+            float reactTimer = 0f;
+            while (reactTimer < reactionDelay)
             {
-                // Misjudge direction or timing on lower rounds
-                float offset = (UnityEngine.Random.value < 0.5f ? -1f : 1f) * UnityEngine.Random.Range(1.0f, 2.2f);
-                predictedX += offset;
-                predictedY += UnityEngine.Random.Range(-0.5f, 0.6f);
+                float dt = Time.deltaTime;
+                reactTimer += dt;
+                float blend = 1f - Mathf.Exp(-20f * dt);
+                float trackYaw = Mathf.Clamp(-predictedX * 10f, -26f, 26f);
+                ApplyAthleticCrouchPose(blend, crouchDepth: 0.16f, torsoTiltX: 20f, kneeBend: 50f, headYaw: trackYaw, swayX: -Mathf.Sign(predictedX) * 4f);
+                yield return null;
+            }
+
+            // Round-based human misread / guess bias on placed shots (never artificial/forced saves)
+            bool isPlacedShot = Mathf.Abs(predictedX) > 0.65f;
+            float effectiveError = isPlacedShot ? errorProbability : errorProbability * 0.35f;
+            bool misread = UnityEngine.Random.value < effectiveError;
+
+            if (misread)
+            {
+                // Commit wrong direction firmly on placed shots or misread central shots on lower rounds
+                float dirAway = Mathf.Abs(predictedX) > 0.35f ? -Mathf.Sign(predictedX) : (UnityEngine.Random.value < 0.5f ? -1f : 1f);
+                predictedX = Mathf.Clamp(predictedX + dirAway * UnityEngine.Random.Range(1.85f, 3.10f), minX, maxX);
+                predictedY = Mathf.Clamp(predictedY + UnityEngine.Random.Range(-0.45f, 0.55f), minY, maxY);
             }
 
             predictedX = Mathf.Clamp(predictedX, minX, maxX);
             predictedY = Mathf.Clamp(predictedY, minY, maxY);
 
-            // Physical reach constraint based on diveSpeed & remaining flight time
+            // Physical push-off travel constraint along goal line
             Vector3 fromPos = transform.position;
-            float availableDiveTime = Mathf.Max(0.14f, timeToGoal - reactionDelay);
-            float maxTravelDist = diveSpeed * availableDiveTime * 1.15f;
+            float availableDiveTime = Mathf.Max(0.11f, timeToGoal - reactionDelay);
+            float maxTravelDist = diveSpeed * availableDiveTime;
 
             float targetDeltaX = predictedX - fromPos.x;
             if (Mathf.Abs(targetDeltaX) > maxTravelDist)
@@ -253,110 +387,233 @@ namespace UltimatePenaltyCup.Goalkeeper
             }
 
             float finalX = Mathf.Clamp(fromPos.x + targetDeltaX, minX, maxX);
-            float finalY = Mathf.Clamp(predictedY, 0.0f, 1.45f); // Center of mass max height
-            bool reachHighHands = predictedY > 1.45f;
+            float diveDistX = Mathf.Abs(finalX - fromPos.x);
+
+            // Keeper faces -Z (180 deg Y), so moving toward world +X is keeper's LEFT side!
+            bool divingLeft = targetDeltaX > 0f;
+
+            // Choose expressive full-body athletic animation style
+            if (diveDistX <= 0.62f)
+            {
+                if (predictedY >= 1.62f)
+                    ActiveDiveStyle = GoalkeeperDiveStyle.HighVerticalJump;
+                else if (predictedY <= 0.62f && Mathf.Abs(predictedX - fromPos.x) <= 0.95f && power >= 0.65f)
+                    ActiveDiveStyle = GoalkeeperDiveStyle.LegBlock;
+                else
+                    ActiveDiveStyle = GoalkeeperDiveStyle.FrontalCatch;
+
+                CurrentState = GoalkeeperState.Saving;
+            }
+            else
+            {
+                if (predictedY < 0.72f)
+                    ActiveDiveStyle = divingLeft ? GoalkeeperDiveStyle.LowLeft : GoalkeeperDiveStyle.LowRight;
+                else if (predictedY < 1.48f)
+                    ActiveDiveStyle = divingLeft ? GoalkeeperDiveStyle.MidLeft : GoalkeeperDiveStyle.MidRight;
+                else
+                    ActiveDiveStyle = divingLeft ? GoalkeeperDiveStyle.HighLeft : GoalkeeperDiveStyle.HighRight;
+
+                CurrentState = divingLeft ? GoalkeeperState.DivingLeft : GoalkeeperState.DivingRight;
+            }
 
             HasDived = true;
             OnSaveAttempted?.Invoke();
 
-            float diveDistX = Mathf.Abs(finalX - fromPos.x);
-            // Remember keeper faces -Z (180° Y), so moving toward world +X is keeper's LEFT side!
-            bool divingTowardWorldPosX = targetDeltaX > 0f;
-
-            if (diveDistX > 0.55f)
-            {
-                CurrentState = divingTowardWorldPosX ? GoalkeeperState.DivingLeft : GoalkeeperState.DivingRight;
-            }
-            else
-            {
-                CurrentState = GoalkeeperState.Saving;
-            }
-
-            float diveDuration = Mathf.Clamp(availableDiveTime * 0.92f, 0.22f, 0.45f);
+            float diveDuration = Mathf.Clamp(availableDiveTime * 0.94f, 0.11f, 0.34f);
             float diveTimer = 0f;
+
+            // Target body center height & arc for chosen style
+            float targetBodyY = ActiveDiveStyle switch
+            {
+                GoalkeeperDiveStyle.HighVerticalJump => Mathf.Clamp(predictedY - 0.85f, 0.25f, 0.88f),
+                GoalkeeperDiveStyle.HighLeft or GoalkeeperDiveStyle.HighRight => Mathf.Clamp(predictedY * 0.55f, 0.45f, 0.92f),
+                GoalkeeperDiveStyle.MidLeft or GoalkeeperDiveStyle.MidRight => Mathf.Clamp(predictedY * 0.38f, 0.22f, 0.52f),
+                _ => 0.04f
+            };
 
             while (diveTimer < diveDuration && !hasSavedCurrentShot)
             {
-                diveTimer += Time.deltaTime;
+                float dt = Time.deltaTime;
+                diveTimer += dt;
                 float t = Mathf.Clamp01(diveTimer / diveDuration);
-                float smoothT = Mathf.Sin(t * Mathf.PI * 0.5f); // Fast explosive start
-                float boneBlend = 1f - Mathf.Exp(-18f * Time.deltaTime);
+                float smoothT = Mathf.Sin(t * Mathf.PI * 0.5f); // Explosive push-off
+                float boneBlend = 1f - Mathf.Exp(-26f * dt);
 
                 float curX = Mathf.Lerp(fromPos.x, finalX, smoothT);
-                // Arc trajectory that lands cleanly on turf (never < 0)
-                float jumpArc = Mathf.Sin(t * Mathf.PI) * Mathf.Clamp(finalY * 0.65f, 0.08f, 0.85f);
-                float curY = Mathf.Max(0f, Mathf.Lerp(0f, finalY * 0.35f, smoothT) + jumpArc * (diveDistX > 0.55f ? 0.8f : 1.0f));
+                float jumpBell = Mathf.Sin(t * Mathf.PI);
+                float curY = ActiveDiveStyle == GoalkeeperDiveStyle.LegBlock || ActiveDiveStyle == GoalkeeperDiveStyle.LowLeft || ActiveDiveStyle == GoalkeeperDiveStyle.LowRight
+                    ? Mathf.Max(0f, jumpBell * 0.10f)
+                    : Mathf.Max(0f, Mathf.Lerp(0f, targetBodyY, smoothT) + jumpBell * (targetBodyY * 0.45f + 0.12f));
 
                 MoveRoot(new Vector3(curX, curY, startPosition.z), startRotation);
-
-                if (diveDistX > 0.55f)
-                {
-                    // Athletic horizontal dive pose on Hips (keeps feet clear & natural)
-                    float localRollDir = divingTowardWorldPosX ? -1f : 1f;
-                    if (hips != null)
-                    {
-                        hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.Euler(0f, 0f, 68f * localRollDir), smoothT);
-                        hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, 0.48f, hipsBaseLocalPos.z), smoothT);
-                    }
-                    if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(8f, 0f, 0f), boneBlend);
-                    if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(5f, 0f, 0f), boneBlend);
-                    if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(0f, 0f, -30f * localRollDir), boneBlend);
-
-                    // Extend arms along dive direction to catch/parry
-                    if (divingTowardWorldPosX)
-                    {
-                        if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-15f, 0f, -155f), boneBlend);
-                        if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-10f, 0f, 0f), boneBlend);
-                        if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-25f, 0f, -110f), boneBlend);
-                        if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-20f, 0f, 0f), boneBlend);
-                    }
-                    else
-                    {
-                        if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-15f, 0f, 155f), boneBlend);
-                        if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-10f, 0f, 0f), boneBlend);
-                        if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-25f, 0f, 110f), boneBlend);
-                        if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-20f, 0f, 0f), boneBlend);
-                    }
-
-                    if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(15f, 0f, -12f * localRollDir), boneBlend);
-                    if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(22f, 0f, 0f), boneBlend);
-                    if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-10f, 0f, -12f * localRollDir), boneBlend);
-                    if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(18f, 0f, 0f), boneBlend);
-                }
-                else
-                {
-                    // Central save / high leap
-                    if (hips != null) hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.identity, boneBlend);
-                    float upAngle = reachHighHands ? -155f : -85f;
-                    if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(upAngle, 10f, -18f), boneBlend);
-                    if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-15f, 0f, 0f), boneBlend);
-                    if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(upAngle, -10f, 18f), boneBlend);
-                    if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-15f, 0f, 0f), boneBlend);
-                }
+                ApplyDivePose(ActiveDiveStyle, divingLeft, predictedY, smoothT, boneBlend);
 
                 yield return null;
             }
 
-            // Settle onto turf if diving (smooth landing & hip recovery)
+            // Hold extension briefly while ball passes, then smooth turf slide/landing & progressive recovery
+            yield return TurfLandingAndProgressiveRecoveryRoutine();
+        }
+
+        private void ApplyDivePose(GoalkeeperDiveStyle style, bool divingLeft, float predictedY, float diveT, float boneBlend)
+        {
+            // Head (+Y) rotated by +Z tilts toward local -X (keeper's LEFT = world +X) -> dive head/hands first!
+            float rollDir = divingLeft ? 1f : -1f;
+
+            switch (style)
+            {
+                case GoalkeeperDiveStyle.LowLeft:
+                case GoalkeeperDiveStyle.LowRight:
+                    SetHipsAndSpine(0.34f, Quaternion.Euler(6f, 10f * rollDir, 78f * rollDir), 10f, 6f, -30f * rollDir, diveT, boneBlend);
+                    ApplyDiveLimbs(divingLeft, leadArmZ: -158f, trailArmZ: -124f, armForwardX: -24f, hipTrailAngle: 18f, kneeBend: 24f, blend: boneBlend);
+                    break;
+
+                case GoalkeeperDiveStyle.MidLeft:
+                case GoalkeeperDiveStyle.MidRight:
+                    SetHipsAndSpine(0.56f, Quaternion.Euler(4f, 8f * rollDir, 70f * rollDir), 12f, 8f, -26f * rollDir, diveT, boneBlend);
+                    ApplyDiveLimbs(divingLeft, leadArmZ: -162f, trailArmZ: -135f, armForwardX: -14f, hipTrailAngle: 14f, kneeBend: 20f, blend: boneBlend);
+                    break;
+
+                case GoalkeeperDiveStyle.HighLeft:
+                case GoalkeeperDiveStyle.HighRight:
+                    SetHipsAndSpine(0.76f, Quaternion.Euler(-4f, 6f * rollDir, 52f * rollDir), 8f, 6f, -20f * rollDir, diveT, boneBlend);
+                    ApplyDiveLimbs(divingLeft, leadArmZ: -170f, trailArmZ: -142f, armForwardX: -6f, hipTrailAngle: 10f, kneeBend: 14f, blend: boneBlend);
+                    break;
+
+                case GoalkeeperDiveStyle.HighVerticalJump:
+                    if (hips != null)
+                    {
+                        hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y + 0.06f, hipsBaseLocalPos.z), boneBlend);
+                        hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.Euler(-8f, 0f, 0f), boneBlend);
+                    }
+                    if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(-12f, 0f, 0f), boneBlend);
+                    if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(-8f, 0f, 0f), boneBlend);
+                    if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-16f, 0f, 0f), boneBlend);
+                    if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-165f, 12f, -16f), boneBlend);
+                    if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-12f, 0f, 0f), boneBlend);
+                    if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-165f, -12f, 16f), boneBlend);
+                    if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-12f, 0f, 0f), boneBlend);
+                    if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-14f, 0f, -6f), boneBlend);
+                    if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(28f, 0f, 0f), boneBlend);
+                    if (leftFoot != null) leftFoot.localRotation = Quaternion.Slerp(leftFoot.localRotation, Quaternion.Euler(24f, 0f, 0f), boneBlend);
+                    if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-14f, 0f, 6f), boneBlend);
+                    if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(28f, 0f, 0f), boneBlend);
+                    if (rightFoot != null) rightFoot.localRotation = Quaternion.Slerp(rightFoot.localRotation, Quaternion.Euler(24f, 0f, 0f), boneBlend);
+                    break;
+
+                case GoalkeeperDiveStyle.LegBlock:
+                    // Quick drop into split leg-block pose (classic goalkeeper foot save!)
+                    if (hips != null)
+                    {
+                        hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, 0.56f, hipsBaseLocalPos.z), boneBlend);
+                        hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.Euler(10f, 0f, 14f * rollDir), boneBlend);
+                    }
+                    if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(22f, 0f, 0f), boneBlend);
+                    if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(12f, 0f, 0f), boneBlend);
+                    if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-48f, -15f, -38f), boneBlend);
+                    if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(46f, 0f, 0f), boneBlend);
+                    if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-22f, 20f, 44f), boneBlend);
+                    if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(16f, 0f, 0f), boneBlend);
+                    if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-48f, 12f, -45f), boneBlend);
+                    if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-35f, 0f, 0f), boneBlend);
+                    if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-48f, -12f, 45f), boneBlend);
+                    if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-35f, 0f, 0f), boneBlend);
+                    break;
+
+                default: // FrontalCatch
+                    float handPitch = Mathf.Lerp(-68f, -122f, Mathf.Clamp01(predictedY / 1.8f));
+                    ApplyAthleticCrouchPose(boneBlend, crouchDepth: 0.10f, torsoTiltX: 16f, kneeBend: 38f, headYaw: 0f, swayX: 0f);
+                    if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(handPitch, 18f, -16f), boneBlend);
+                    if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-36f, 0f, 0f), boneBlend);
+                    if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(handPitch, -18f, 16f), boneBlend);
+                    if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-36f, 0f, 0f), boneBlend);
+                    break;
+            }
+        }
+
+        private void SetHipsAndSpine(float hipHeight, Quaternion hipRot, float spineArch, float chestArch, float headCounterRoll, float diveT, float blend)
+        {
+            if (hips != null)
+            {
+                hips.localRotation = Quaternion.Slerp(hips.localRotation, hipRot, diveT);
+                hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, hipHeight, hipsBaseLocalPos.z), diveT);
+            }
+            if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(spineArch, 0f, 0f), blend);
+            if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(chestArch, 0f, 0f), blend);
+            if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-12f, 0f, headCounterRoll), blend);
+        }
+
+        private void ApplyDiveLimbs(bool divingLeft, float leadArmZ, float trailArmZ, float armForwardX, float hipTrailAngle, float kneeBend, float blend)
+        {
+            float rollDir = divingLeft ? -1f : 1f;
+            if (divingLeft)
+            {
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(armForwardX, 0f, leadArmZ), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-8f, 0f, 0f), blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(armForwardX - 10f, 0f, trailArmZ), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-14f, 0f, 0f), blend);
+            }
+            else
+            {
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(armForwardX, 0f, -leadArmZ), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-8f, 0f, 0f), blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(armForwardX - 10f, 0f, -trailArmZ), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-14f, 0f, 0f), blend);
+            }
+
+            if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(hipTrailAngle, 0f, 10f * rollDir), blend);
+            if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(kneeBend, 0f, 0f), blend);
+            if (leftFoot != null) leftFoot.localRotation = Quaternion.Slerp(leftFoot.localRotation, Quaternion.Euler(18f, 0f, 0f), blend);
+            if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-8f, 0f, 10f * rollDir), blend);
+            if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(kneeBend * 0.8f, 0f, 0f), blend);
+            if (rightFoot != null) rightFoot.localRotation = Quaternion.Slerp(rightFoot.localRotation, Quaternion.Euler(18f, 0f, 0f), blend);
+        }
+
+        private IEnumerator TurfLandingAndProgressiveRecoveryRoutine()
+        {
             if (CurrentState == GoalkeeperState.DivingLeft || CurrentState == GoalkeeperState.DivingRight)
             {
                 CurrentState = GoalkeeperState.Recovering;
+                IsRecoveringFromDive = true;
                 Vector3 landPos = transform.position;
                 Quaternion startHipsRot = hips != null ? hips.localRotation : Quaternion.identity;
                 Vector3 startHipsPos = hips != null ? hips.localPosition : hipsBaseLocalPos;
+
+                // Stage 1 (0.20s): Cushioned landing onto grass (slide settle)
                 float settleT = 0f;
-                while (settleT < 0.28f)
+                while (settleT < 0.20f)
                 {
                     settleT += Time.deltaTime;
-                    float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(settleT / 0.28f));
+                    float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(settleT / 0.20f));
                     MoveRoot(new Vector3(landPos.x, Mathf.Lerp(landPos.y, 0f, p), startPosition.z), startRotation);
                     if (hips != null)
                     {
-                        hips.localRotation = Quaternion.Slerp(startHipsRot, Quaternion.identity, p);
-                        hips.localPosition = Vector3.Lerp(startHipsPos, hipsBaseLocalPos, p);
+                        hips.localPosition = Vector3.Lerp(startHipsPos, new Vector3(hipsBaseLocalPos.x, 0.30f, hipsBaseLocalPos.z), p);
                     }
                     yield return null;
                 }
+
+                // Stage 2 (0.36s): Progressive push-up from turf through kneeling squat back up to stance
+                float pushT = 0f;
+                while (pushT < 0.36f)
+                {
+                    pushT += Time.deltaTime;
+                    float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(pushT / 0.36f));
+                    if (hips != null)
+                    {
+                        hips.localRotation = Quaternion.Slerp(startHipsRot, Quaternion.identity, p);
+                        float midY = Mathf.Lerp(0.30f, hipsBaseLocalPos.y - 0.08f, p);
+                        hips.localPosition = new Vector3(hipsBaseLocalPos.x, midY, hipsBaseLocalPos.z);
+                    }
+                    float crouchKnee = Mathf.Sin(p * Mathf.PI) * 52f + 16f;
+                    if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(Mathf.Sin(p * Mathf.PI) * 26f, 0f, 0f), 0.25f);
+                    if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-crouchKnee * 0.6f, 0f, 0f), 0.25f);
+                    if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(crouchKnee, 0f, 0f), 0.25f);
+                    if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-crouchKnee * 0.6f, 0f, 0f), 0.25f);
+                    if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(crouchKnee, 0f, 0f), 0.25f);
+                    yield return null;
+                }
+                IsRecoveringFromDive = false;
             }
         }
 
@@ -375,17 +632,28 @@ namespace UltimatePenaltyCup.Goalkeeper
             // Swept segment proximity intercept check across the keeper plane [startZ - 0.42f, 0.12f]
             if (maxZ < startPosition.z - 0.42f || minZ > 0.12f) return;
 
-            Vector3 keeperCenter = transform.position + Vector3.up * 0.95f;
-            Vector3 leftHandPos = leftGloveAnchor != null ? leftGloveAnchor.position : keeperCenter + Vector3.left * 0.45f;
-            Vector3 rightHandPos = rightGloveAnchor != null ? rightGloveAnchor.position : keeperCenter + Vector3.right * 0.45f;
+            Vector3 pelvisPos = hips != null ? hips.position : transform.position + Vector3.up * 0.85f;
+            Vector3 torsoPos = chest != null ? chest.position : transform.position + Vector3.up * 1.25f;
+            Vector3 leftHandPos = leftGloveAnchor != null ? leftGloveAnchor.position : pelvisPos + Vector3.left * 0.45f;
+            Vector3 rightHandPos = rightGloveAnchor != null ? rightGloveAnchor.position : pelvisPos + Vector3.right * 0.45f;
 
-            float dBody = DistanceToSegment(keeperCenter, prevPos, currPos);
+            float dPelvis = DistanceToSegment(pelvisPos, prevPos, currPos);
+            float dTorso = DistanceToSegment(torsoPos, prevPos, currPos);
             float dL = DistanceToSegment(leftHandPos, prevPos, currPos);
             float dR = DistanceToSegment(rightHandPos, prevPos, currPos);
 
-            float bodyRadius = 0.42f;
-            float gloveRadius = 0.46f + (currentRoundNumber - 1) * 0.045f; // 0.46m R1 -> 0.64m R5
-            if (dBody <= bodyRadius || dL <= gloveRadius || dR <= gloveRadius)
+            float bodyRadius = 0.28f;
+            float gloveRadius = 0.26f + (currentRoundNumber - 1) * 0.025f; // 0.26m R1 -> 0.36m R5
+
+            bool footIntercept = false;
+            if (leftFoot != null && rightFoot != null)
+            {
+                float dFootL = DistanceToSegment(leftFoot.position, prevPos, currPos);
+                float dFootR = DistanceToSegment(rightFoot.position, prevPos, currPos);
+                footIntercept = dFootL <= 0.22f || dFootR <= 0.22f;
+            }
+
+            if (dPelvis <= bodyRadius || dTorso <= bodyRadius || dL <= gloveRadius || dR <= gloveRadius || footIntercept)
             {
                 PerformSaveDeflection(ball);
             }
@@ -444,6 +712,7 @@ namespace UltimatePenaltyCup.Goalkeeper
 
         public void PlaySaveCelebration()
         {
+            if (!isActiveAndEnabled) return;
             if (animCoroutine != null) StopCoroutine(animCoroutine);
             animCoroutine = StartCoroutine(SaveCelebrationRoutine());
         }
@@ -492,6 +761,7 @@ namespace UltimatePenaltyCup.Goalkeeper
 
         public void PlayConcededReaction()
         {
+            if (!isActiveAndEnabled) return;
             if (animCoroutine != null) StopCoroutine(animCoroutine);
             animCoroutine = StartCoroutine(ConcededReactionRoutine());
         }
@@ -532,6 +802,7 @@ namespace UltimatePenaltyCup.Goalkeeper
 
         public void ResetPosition()
         {
+            if (!isActiveAndEnabled) return;
             StopAllGoalkeeperCoroutines();
 
             isShotActive = false;
@@ -589,15 +860,20 @@ namespace UltimatePenaltyCup.Goalkeeper
             }
             if (spine != null) spine.localRotation = Quaternion.identity;
             if (chest != null) chest.localRotation = Quaternion.identity;
+            if (neck != null) neck.localRotation = Quaternion.identity;
             if (head != null) head.localRotation = Quaternion.identity;
             if (leftArm != null) leftArm.localRotation = Quaternion.identity;
             if (leftForearm != null) leftForearm.localRotation = Quaternion.identity;
+            if (leftHand != null) leftHand.localRotation = Quaternion.identity;
             if (rightArm != null) rightArm.localRotation = Quaternion.identity;
             if (rightForearm != null) rightForearm.localRotation = Quaternion.identity;
+            if (rightHand != null) rightHand.localRotation = Quaternion.identity;
             if (leftLeg != null) leftLeg.localRotation = Quaternion.identity;
             if (leftShin != null) leftShin.localRotation = Quaternion.identity;
+            if (leftFoot != null) leftFoot.localRotation = Quaternion.identity;
             if (rightLeg != null) rightLeg.localRotation = Quaternion.identity;
             if (rightShin != null) rightShin.localRotation = Quaternion.identity;
+            if (rightFoot != null) rightFoot.localRotation = Quaternion.identity;
         }
     }
 }

@@ -6,9 +6,11 @@ using UltimatePenaltyCup.SaveSystem;
 
 namespace UltimatePenaltyCup.Gameplay
 {
+    [DefaultExecutionOrder(-50)]
     public class StadiumController : MonoBehaviour
     {
         public static StadiumController Instance { get; private set; }
+        public StadiumType ActiveVenue => activeVenue;
 
         [Header("Stadium Renderers")]
         [SerializeField] private Renderer pitchRenderer;
@@ -51,13 +53,25 @@ namespace UltimatePenaltyCup.Gameplay
                 CustomizationManager.Instance.OnStadiumSelected += HandleStadiumSelected;
             }
 
-            // If PenaltyManager didn't already apply round venue, apply default/saved
             if (PenaltyManager.Instance == null)
             {
-                StadiumType initial = CustomizationManager.Instance != null
-                    ? CustomizationManager.Instance.SelectedStadium
-                    : StadiumType.Cantera;
-                ApplyVenue(initial);
+                var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+                if (data != null && data.useCustomStadiumOverride && SaveManager.Instance.IsStadiumUnlocked(data.selectedStadium))
+                {
+                    ApplyVenue(data.selectedStadium);
+                }
+                else
+                {
+                    ApplyVenue(StadiumType.Professional);
+                }
+            }
+            else
+            {
+                RoundDataSO currentRound = GameManager.Instance != null ? GameManager.Instance.CurrentRoundData : null;
+                if (currentRound != null)
+                {
+                    ApplyForRound(currentRound);
+                }
             }
         }
 
@@ -84,20 +98,25 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void HandleStadiumSelected(StadiumType stadium)
         {
-            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null && SaveManager.Instance.CurrentData.useCustomStadiumOverride)
+            var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+            if (data != null && data.useCustomStadiumOverride && SaveManager.Instance.IsStadiumUnlocked(data.selectedStadium))
             {
-                ApplyVenue(stadium);
+                ApplyVenue(data.selectedStadium);
             }
-            else if (GameManager.Instance != null && GameManager.Instance.CurrentRoundData != null)
+            else if (GameManager.Instance != null && GameManager.Instance.CurrentRoundData != null && PenaltyManager.Instance != null)
             {
                 ApplyVenue(GameManager.Instance.CurrentRoundData.stadiumTheme);
+            }
+            else if (PenaltyManager.Instance == null)
+            {
+                ApplyVenue(StadiumType.Professional);
             }
         }
 
         public void ApplyForRound(RoundDataSO roundData)
         {
             var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
-            if (data != null && data.useCustomStadiumOverride)
+            if (data != null && data.useCustomStadiumOverride && SaveManager.Instance.IsStadiumUnlocked(data.selectedStadium))
             {
                 ApplyVenue(data.selectedStadium);
             }
@@ -113,6 +132,7 @@ namespace UltimatePenaltyCup.Gameplay
 
         public void ApplyVenue(StadiumType venue)
         {
+            AutoFindComponents();
             activeVenue = venue;
 
             if (venueCantera != null) venueCantera.SetActive(venue == StadiumType.Cantera);

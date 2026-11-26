@@ -35,6 +35,7 @@ namespace UltimatePenaltyCup.UI
         [Header("Navigation")]
         [SerializeField] private Button btnBack;
         [SerializeField] private MainMenuUI mainMenuUI;
+        [SerializeField] private TMP_Text txtActiveStadiumMode;
 
         private void OnEnable()
         {
@@ -75,6 +76,22 @@ namespace UltimatePenaltyCup.UI
         {
             if (roundCards == null) return;
 
+            var saveData = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+            bool customStadiumActive = saveData != null && saveData.useCustomStadiumOverride &&
+                                       SaveManager.Instance.IsStadiumUnlocked(saveData.selectedStadium);
+            StadiumItemSO customStadiumItem = customStadiumActive && ShopManager.Instance != null
+                ? ShopManager.Instance.GetStadiumItem(saveData.selectedStadium)
+                : null;
+
+            if (txtActiveStadiumMode != null)
+            {
+                string customName = customStadiumItem != null ? customStadiumItem.displayName : (saveData != null ? saveData.selectedStadium.ToString() : "Personalizado");
+                txtActiveStadiumMode.text = customStadiumActive
+                    ? $"ESTADIO FIJO ACTIVO: {customName.ToUpper()} (TODAS LAS RONDAS)"
+                    : "ESTADIO: AUTOMÁTICO POR RONDA";
+                txtActiveStadiumMode.color = customStadiumActive ? new Color(1.0f, 0.78f, 0.24f) : new Color(0.15f, 0.78f, 0.44f);
+            }
+
             foreach (var card in roundCards)
             {
                 bool isUnlocked = SaveManager.Instance != null && SaveManager.Instance.IsRoundUnlocked(card.roundNumber);
@@ -111,7 +128,8 @@ namespace UltimatePenaltyCup.UI
 
                     if (card.imgStadiumPreview != null && ShopManager.Instance != null)
                     {
-                        StadiumItemSO stadium = ShopManager.Instance.GetStadiumItem(data.stadiumTheme);
+                        StadiumType displayStadium = customStadiumActive ? saveData.selectedStadium : data.stadiumTheme;
+                        StadiumItemSO stadium = ShopManager.Instance.GetStadiumItem(displayStadium);
                         if (stadium != null && stadium.icon != null)
                         {
                             card.imgStadiumPreview.sprite = stadium.icon;

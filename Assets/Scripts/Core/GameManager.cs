@@ -41,7 +41,21 @@ namespace UltimatePenaltyCup.Core
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 1;
             EnsureCoreManagers();
+            ApplySavedQualityLevel();
             SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void ApplySavedQualityLevel()
+        {
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null && QualitySettings.names != null && QualitySettings.names.Length > 0)
+            {
+                int q = Mathf.Clamp(SaveManager.Instance.CurrentData.qualityLevel, 0, QualitySettings.names.Length - 1);
+                if (QualitySettings.GetQualityLevel() != q)
+                {
+                    QualitySettings.SetQualityLevel(q, true);
+                }
+                QualitySettings.vSyncCount = 1;
+            }
         }
 
         private void OnDestroy()

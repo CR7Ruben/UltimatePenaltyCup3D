@@ -117,24 +117,44 @@ namespace UltimatePenaltyCup.UI
 
         private void UpdatePreviewPanel()
         {
-            var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+            var saveMgr = SaveManager.Instance ?? FindAnyObjectByType<SaveManager>();
+            var shopMgr = ShopManager.Instance ?? FindAnyObjectByType<ShopManager>();
+            var custMgr = CustomizationManager.Instance ?? FindAnyObjectByType<CustomizationManager>();
+
+            var data = saveMgr != null ? saveMgr.CurrentData : null;
+            bool autoMode = data == null || !data.useCustomStadiumOverride;
+            StadiumType selectedStad = data != null ? data.selectedStadium : StadiumType.Cantera;
+            StadiumItemSO selectedStadItem = shopMgr != null ? shopMgr.GetStadiumItem(selectedStad) : null;
+            string selectedStadName = selectedStadItem != null ? selectedStadItem.displayName : selectedStad.ToString();
+
             if (txtStadiumModeStatus != null)
             {
-                bool autoMode = data == null || !data.useCustomStadiumOverride;
                 txtStadiumModeStatus.text = autoMode
-                    ? "Modo Estadio: Automático por Ronda"
-                    : $"Estadio Fijo: {data.selectedStadium}";
+                    ? "MODO ESTADIO: AUTOMÁTICO POR RONDA\n(Cada ronda usa su estadio oficial)"
+                    : $"MODO ESTADIO FIJO: {selectedStadName.ToUpper()}\n(Se aplicará en todas las rondas)";
+                txtStadiumModeStatus.color = autoMode ? new Color(0.15f, 0.78f, 0.44f) : new Color(1.0f, 0.78f, 0.24f);
             }
 
             if (btnAutoRoundStadium != null)
             {
                 btnAutoRoundStadium.gameObject.SetActive(!showingBalls);
+                btnAutoRoundStadium.interactable = !autoMode;
+                TMP_Text autoTxt = btnAutoRoundStadium.GetComponentInChildren<TMP_Text>();
+                if (autoTxt != null)
+                {
+                    autoTxt.text = autoMode ? "MODO AUTOMÁTICO ACTIVO" : "USAR AUTOMÁTICO POR RONDA";
+                }
+                Image autoImg = btnAutoRoundStadium.GetComponent<Image>();
+                if (autoImg != null)
+                {
+                    autoImg.color = autoMode ? new Color(0.15f, 0.78f, 0.44f) : new Color(0.08f, 0.49f, 1.0f);
+                }
             }
 
             if (showingBalls)
             {
-                BallType equipped = CustomizationManager.Instance != null ? CustomizationManager.Instance.EquippedBall : BallType.Classic;
-                BallItemSO item = ShopManager.Instance != null ? ShopManager.Instance.GetBallItem(equipped) : null;
+                BallType equipped = custMgr != null ? custMgr.EquippedBall : BallType.Classic;
+                BallItemSO item = shopMgr != null ? shopMgr.GetBallItem(equipped) : null;
                 if (txtPreviewCategory != null) txtPreviewCategory.text = "BALÓN EQUIPADO";
                 if (item != null)
                 {
@@ -150,16 +170,18 @@ namespace UltimatePenaltyCup.UI
             }
             else
             {
-                StadiumType selected = CustomizationManager.Instance != null ? CustomizationManager.Instance.SelectedStadium : StadiumType.Cantera;
-                StadiumItemSO item = ShopManager.Instance != null ? ShopManager.Instance.GetStadiumItem(selected) : null;
-                if (txtPreviewCategory != null) txtPreviewCategory.text = "ESTADIO SELECCIONADO";
-                if (item != null)
+                if (txtPreviewCategory != null)
+                    txtPreviewCategory.text = autoMode ? "ESTADIO PERSONALIZADO (DESACTIVADO)" : "ESTADIO ACTIVO EN TODAS LAS RONDAS";
+                if (selectedStadItem != null)
                 {
-                    if (txtPreviewTitle != null) txtPreviewTitle.text = item.displayName;
-                    if (txtPreviewDesc != null) txtPreviewDesc.text = item.description;
-                    if (imgActivePreview != null && item.icon != null)
+                    if (txtPreviewTitle != null) txtPreviewTitle.text = autoMode ? "Automático por Ronda" : selectedStadItem.displayName;
+                    if (txtPreviewDesc != null)
+                        txtPreviewDesc.text = autoMode
+                            ? "Selecciona cualquier estadio desbloqueado a la izquierda para fijarlo en las 5 rondas."
+                            : selectedStadItem.description;
+                    if (imgActivePreview != null && selectedStadItem.icon != null)
                     {
-                        imgActivePreview.sprite = item.icon;
+                        imgActivePreview.sprite = selectedStadItem.icon;
                         imgActivePreview.color = Color.white;
                         imgActivePreview.preserveAspect = true;
                     }

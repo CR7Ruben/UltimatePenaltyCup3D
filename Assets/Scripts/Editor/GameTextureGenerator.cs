@@ -393,9 +393,9 @@ namespace UltimatePenaltyCup.Editor
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Subtle diagonal athletic weave + center sash
+                    // Subtle diagonal athletic weave + clean sleeve region (x: 0..64 kept pure fabric)
                     bool isDiagonal = ((x + y) / 36) % 2 == 0;
-                    Color c = Color.Lerp(royalBlue, deepNavy, isDiagonal ? 0.35f : 0.0f);
+                    Color c = Color.Lerp(royalBlue, deepNavy, isDiagonal ? 0.30f : 0.0f);
 
                     // Top collar gold & navy rim
                     if (y > 470) c = goldTrim;
@@ -404,14 +404,14 @@ namespace UltimatePenaltyCup.Editor
                     // Bottom hem gold stripe
                     if (y < 22) c = goldTrim;
 
-                    // LEFT HALF (x: 0..255) = FRONT OF JERSEY
+                    // LEFT HALF (x: 0..255) = FRONT OF JERSEY (with clean outer band x < 55 / x > 215 for sleeves)
                     if (x < 256)
                     {
-                        // Electric blue chest diagonal stripe
-                        if (Mathf.Abs((x - 128) - (y - 260) * 0.4f) < 18)
+                        // Subtle athletic chest sash confined inside [65..220] so sleeves NEVER sample it
+                        if (x >= 65 && x <= 220 && Mathf.Abs((x - 128) - (y - 260) * 0.4f) < 16)
                             c = Color.Lerp(c, goldTrim, 0.25f);
 
-                        // Gold A&R crest shield on left chest (x: 155..195, y: 310..365)
+                        // Gold A&R crest shield on left chest (x: 158..194, y: 312..362)
                         if (x >= 158 && x <= 194 && y >= 312 && y <= 362)
                         {
                             bool border = x <= 162 || x >= 190 || y <= 316 || y >= 358;
@@ -422,22 +422,22 @@ namespace UltimatePenaltyCup.Editor
                     // RIGHT HALF (x: 256..511) = BACK OF JERSEY WITH CRISP #10
                     else
                     {
-                        int bx = x - 256; // 0..255 local back X
-                        // Number "10" centered on back (bx: 68..188, y: 150..350)
-                        // "1"
+                        int bx = x - 256; // 0..255 local back X (left->right when looking at back from -Z)
+                        // Number "10" centered on back (bx: 64..188, y: 165..335)
+                        // "1" on the LEFT (bx: 64..98)
                         bool isOne = (bx >= 76 && bx <= 98 && y >= 165 && y <= 335) ||
                                      (bx >= 64 && bx <= 76 && y >= 305 && y <= 335);
-                        // "0"
+                        // "0" on the RIGHT (bx: 118..188)
                         bool inOuterZero = bx >= 118 && bx <= 188 && y >= 165 && y <= 335;
                         bool inInnerZero = bx >= 140 && bx <= 166 && y >= 190 && y <= 310;
                         bool isZero = inOuterZero && !inInnerZero;
 
                         if (isOne || isZero) c = crispWhite;
 
-                        // Gold trim box for player nameplate above number (y: 365..392)
-                        if (bx >= 75 && bx <= 181 && y >= 368 && y <= 390)
+                        // Clean horizontal nameplate accent bar above #10
+                        if (bx >= 78 && bx <= 178 && y >= 372 && y <= 388)
                         {
-                            if ((bx / 10) % 2 == 0) c = goldTrim;
+                            c = Color.Lerp(c, goldTrim, 0.85f);
                         }
                     }
 
@@ -758,7 +758,21 @@ namespace UltimatePenaltyCup.Editor
         {
             byte[] bytes = tex.EncodeToPNG();
             string fullPath = Path.Combine(TEXTURE_FOLDER, fileName + ".png");
-            File.WriteAllBytes(fullPath, bytes);
+            for (int attempt = 0; attempt < 4; attempt++)
+            {
+                try
+                {
+                    File.WriteAllBytes(fullPath, bytes);
+                    break;
+                }
+                catch (IOException)
+                {
+                    if (attempt == 3) throw;
+                    AssetDatabase.ReleaseCachedFileHandles();
+                    GC.Collect();
+                    System.Threading.Thread.Sleep(120);
+                }
+            }
             GameObject.DestroyImmediate(tex);
         }
 

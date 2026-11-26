@@ -13,6 +13,12 @@ namespace UltimatePenaltyCup.Gameplay
     [RequireComponent(typeof(SphereCollider))]
     public class BallController : MonoBehaviour
     {
+        public const float BallMassKg = 0.43f;
+        public const float LinearDampingValue = 0.12f;
+        public const float AngularDampingValue = 0.22f;
+        public const float MagnusCoefficient = 0.0020f;
+        public const float MaxMagnusAccel = 1.1f;
+
         public static BallController Instance { get; private set; }
 
         [Header("Components")]
@@ -76,9 +82,9 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void ConfigurePhysics()
         {
-            rb.mass = 0.43f; // Official FIFA football mass ~430g
-            rb.linearDamping = 0.12f;
-            rb.angularDamping = 0.22f;
+            rb.mass = BallMassKg; // Official FIFA football mass ~430g
+            rb.linearDamping = LinearDampingValue;
+            rb.angularDamping = AngularDampingValue;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -106,12 +112,19 @@ namespace UltimatePenaltyCup.Gameplay
             Vector3 vel = rb.linearVelocity;
             if (vel.sqrMagnitude > 4f)
             {
-                Vector3 magnus = Vector3.Cross(rb.angularVelocity, vel) * 0.0025f;
-                magnus.y = 0f;
-                magnus.x = Mathf.Clamp(magnus.x, -1.5f, 1.5f);
-                magnus.z = 0f;
+                Vector3 magnus = ComputeMagnusAccel(vel, rb.angularVelocity);
                 rb.AddForce(magnus, ForceMode.Acceleration);
             }
+        }
+
+        public static Vector3 ComputeMagnusAccel(Vector3 velocity, Vector3 angularVelocity)
+        {
+            if (velocity.sqrMagnitude <= 4f) return Vector3.zero;
+            Vector3 magnus = Vector3.Cross(angularVelocity, velocity) * MagnusCoefficient;
+            magnus.y = 0f;
+            magnus.x = Mathf.Clamp(magnus.x, -MaxMagnusAccel, MaxMagnusAccel);
+            magnus.z = 0f;
+            return magnus;
         }
 
         public void ApplyEquippedBallSkin()

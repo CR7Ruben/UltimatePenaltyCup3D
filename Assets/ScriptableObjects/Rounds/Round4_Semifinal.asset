@@ -22,7 +22,7 @@ MonoBehaviour:
   stadiumTheme: 1
   goalkeeperName: "Mal\xE1gon"
   goalkeeperTypeTitle: Portero Avanzado
-  reactionDelay: 0.12
-  moveSpeed: 7.6
-  diveSpeed: 9.5
-  errorProbability: 0.14
+  reactionDelay: 0.145
+  moveSpeed: 5.6
+  diveSpeed: 6.4
+  errorProbability: 0.34

@@ -3,23 +3,24 @@ using UnityEngine;
 namespace UltimatePenaltyCup.Gameplay
 {
     /// <summary>
-    /// Gentle broadcast camera orbit over the 3D stadium in MainMenu.
+    /// Smooth cinematic broadcast camera sway showcasing the 3D hero striker and stadium in MainMenu.
     /// </summary>
     public class MenuCameraOrbit : MonoBehaviour
     {
-        [SerializeField] private Vector3 lookTarget = new Vector3(-2.0f, 1.3f, -4.5f);
-        [SerializeField] private float baseRadius = 11.5f;
-        [SerializeField] private float baseHeight = 4.2f;
-        [SerializeField] private float orbitSpeed = 0.08f;
+        [SerializeField] private Vector3 lookTarget = new Vector3(0.10f, 1.05f, -5.8f);
+        [SerializeField] private Vector3 baseAnchor = new Vector3(1.15f, 1.65f, -14.15f);
+        [SerializeField] private float swayAmplitudeX = 0.65f;
+        [SerializeField] private float swayAmplitudeY = 0.16f;
+        [SerializeField] private float orbitSpeed = 0.35f;
 
-        private float angle = 0.35f;
+        private float timer = 0f;
 
         private void LateUpdate()
         {
-            angle += Time.deltaTime * orbitSpeed;
-            float x = lookTarget.x + Mathf.Sin(angle) * baseRadius;
-            float z = lookTarget.z - Mathf.Cos(angle) * baseRadius;
-            float y = baseHeight + Mathf.Sin(angle * 0.7f) * 0.45f;
+            timer += Time.deltaTime * orbitSpeed;
+            float x = baseAnchor.x + Mathf.Sin(timer) * swayAmplitudeX;
+            float y = baseAnchor.y + Mathf.Cos(timer * 0.8f) * swayAmplitudeY;
+            float z = baseAnchor.z + Mathf.Cos(timer * 0.5f) * 0.35f;
 
             transform.position = new Vector3(x, y, z);
             transform.LookAt(lookTarget);

@@ -43,6 +43,10 @@ namespace UltimatePenaltyCup.Editor
             Test("13. MainMenu & MatchScene Wiring (GameManager, Camera, RoundEndUI)", TestSceneWiring, ref passed, ref total);
             Test("14. PlayModeStartScene Enforces MainMenu Start With Debug Bypass", TestPlayModeStartSceneConfig, ref passed, ref total);
             Test("15. Rendering & Performance Audit (GPU Instancing, No Floodlight Shadows, Batched Stadium)", TestPerformanceOptimizations, ref passed, ref total);
+            Test("16. Clean Logo Asset Exists With Zero Gray Pillarboxes", TestCleanLogoAsset, ref passed, ref total);
+            Test("17. Player 3D Mesh Integrity (Full Height, Legs/Boots Submeshes, 17 Bones, Back #10 UV)", TestPlayerMeshIntegrity, ref passed, ref total);
+            Test("18. Shop, Stadium Override Persistence & Locked Item Enforcement", TestShopAndPersistenceRoundtrip, ref passed, ref total);
+            Test("19. Quality Presets (Baja / Media / Alta)", TestQualityPresets, ref passed, ref total);
 
             Debug.Log("----------------------------------------------------------");
             Debug.Log($"TEST RESULTS: {passed} / {total} TESTS PASSED! ({(float)passed / total * 100f:F1}%)");
@@ -305,14 +309,110 @@ namespace UltimatePenaltyCup.Editor
         private static void TestSceneWiring()
         {
             var menuScene = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Single);
-            GameManager gm = UnityEngine.Object.FindFirstObjectByType<GameManager>();
+            GameManager gm = UnityEngine.Object.FindAnyObjectByType<GameManager>();
             Assert(gm != null && gm.GetRoundData(3) != null && gm.GetRoundData(5) != null, "MainMenu GameManager must have Round 1-5 configs wired.");
 
             var matchScene = EditorSceneManager.OpenScene("Assets/Scenes/MatchScene.unity", OpenSceneMode.Single);
-            Assert(UnityEngine.Object.FindFirstObjectByType<MatchCameraController>() != null, "MatchScene Camera must have MatchCameraController.");
-            var endUI = UnityEngine.Object.FindFirstObjectByType<UltimatePenaltyCup.UI.RoundEndUI>(FindObjectsInactive.Include);
+            Assert(UnityEngine.Object.FindAnyObjectByType<MatchCameraController>() != null, "MatchScene Camera must have MatchCameraController.");
+            var endUI = UnityEngine.Object.FindAnyObjectByType<UltimatePenaltyCup.UI.RoundEndUI>(FindObjectsInactive.Include);
             Assert(endUI != null && endUI.gameObject.activeInHierarchy, "RoundEndUI must live on an always-active GameObject so Start() subscribes!");
-            Assert(UnityEngine.Object.FindFirstObjectByType<StadiumController>() != null, "MatchScene must have StadiumController.");
+            Assert(UnityEngine.Object.FindAnyObjectByType<StadiumController>() != null, "MatchScene must have StadiumController.");
+        }
+
+        private static void TestCleanLogoAsset()
+        {
+            string cleanPath = "Assets/Art/Logo/UltimatePenaltyCup3D_Logo_Clean.png";
+            Assert(System.IO.File.Exists(cleanPath), "Clean logo file must exist.");
+            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(cleanPath);
+            Assert(tex != null && tex.width == tex.height && tex.width >= 400, $"Clean logo must be square >=400px, got {tex?.width}x{tex?.height}.");
+            Sprite sp = AssetDatabase.LoadAssetAtPath<Sprite>(cleanPath);
+            Assert(sp != null, "Clean logo must import as Sprite.");
+
+            byte[] png = System.IO.File.ReadAllBytes(cleanPath);
+            Texture2D readable = new Texture2D(2, 2);
+            readable.LoadImage(png);
+            Color32 corner = readable.GetPixel(0, 0);
+            UnityEngine.Object.DestroyImmediate(readable);
+            Assert(corner.a == 0, $"Clean logo outer corner must have alpha=0 (rounded/no pillarboxes), got a={corner.a}.");
+        }
+
+        private static void TestPlayerMeshIntegrity()
+        {
+            Mesh m = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/Art/Models/Mesh_RubenGonzalez.asset");
+            Assert(m != null, "Mesh_RubenGonzalez.asset must exist.");
+            Assert(m.subMeshCount == 7, $"Expected 7 submeshes on Rubén mesh, got {m.subMeshCount}.");
+            Assert(m.bindposes != null && m.bindposes.Length == 17, $"Expected 17 bindposes, got {m.bindposes?.Length}.");
+            Assert(m.bounds.min.y <= 0.02f && m.bounds.max.y >= 1.75f, $"Player mesh bounds Y must span full height [<=0.02 .. >=1.75], got [{m.bounds.min.y:F3} .. {m.bounds.max.y:F3}].");
+
+            for (int s = 0; s < m.subMeshCount; s++)
+            {
+                Assert(m.GetTriangles(s).Length > 0, $"Submesh {s} must have non-zero triangles.");
+            }
+
+            Vector3[] verts = m.vertices;
+            Vector2[] uvs = m.uv;
+            int[] jerseyTris = m.GetTriangles(0);
+            float minULeft = 1f, maxURight = 0f;
+            var visited = new HashSet<int>();
+            foreach (int idx in jerseyTris)
+            {
+                if (!visited.Add(idx)) continue;
+                Vector3 v = verts[idx];
+                // Isolate torso back panel strictly inside shoulder X bounds so solid sleeves [0.04..0.14] are excluded
+                if (Mathf.Abs(v.x) < 0.16f && v.z < -0.06f && v.y > 1.05f && v.y < 1.45f)
+                {
+                    if (v.x < -0.04f && uvs[idx].x < minULeft) minULeft = uvs[idx].x;
+                    if (v.x > 0.04f && uvs[idx].x > maxURight) maxURight = uvs[idx].x;
+                }
+            }
+            Assert(minULeft < maxURight && minULeft >= 0.50f && maxURight <= 1.0f,
+                $"Back jersey #10 UV must increase left->right [0.5..1.0], got minULeft={minULeft:F3}, maxURight={maxURight:F3}.");
+        }
+
+        private static void TestShopAndPersistenceRoundtrip()
+        {
+            GameObject go = new GameObject("Test_ShopAndPersist");
+            var sm = go.AddComponent<SaveManager>();
+            sm.SetTestDataInMemory(new SaveData());
+            var cm = go.AddComponent<CurrencyManager>();
+            cm.BindForTest();
+            var shm = go.AddComponent<ShopManager>();
+            var cust = go.AddComponent<CustomizationManager>();
+
+            try
+            {
+                var night = ScriptableObject.CreateInstance<StadiumItemSO>();
+                night.stadiumType = StadiumType.Night;
+                night.displayName = "Estadio Nocturno";
+                night.price = 2000;
+                shm.SetCatalogs(new List<BallItemSO>(), new List<StadiumItemSO> { night });
+
+                Assert(!cust.SelectStadium(StadiumType.Night), "Locked stadium must be rejected.");
+                sm.CurrentData.coins = 1000;
+                Assert(!shm.BuyStadium(StadiumType.Night), "Stadium purchase with insufficient coins must fail.");
+                sm.CurrentData.coins = 2500;
+                Assert(shm.BuyStadium(StadiumType.Night) && cm.Coins == 500, "Stadium purchase must deduct exact 2000 coins.");
+                Assert(!shm.BuyStadium(StadiumType.Night) && cm.Coins == 500, "Duplicate stadium purchase must fail cleanly.");
+                Assert(cust.SelectStadium(StadiumType.Night), "Unlocked stadium selection must succeed.");
+
+                string json = JsonUtility.ToJson(sm.CurrentData);
+                SaveData reloaded = JsonUtility.FromJson<SaveData>(json);
+                Assert(reloaded.useCustomStadiumOverride && reloaded.selectedStadium == StadiumType.Night,
+                    "JSON save/reload must preserve custom stadium selection.");
+                Assert(reloaded.unlockedStadiums.Contains(StadiumType.Night), "JSON save/reload must preserve unlocked stadiums.");
+            }
+            finally { GameObject.DestroyImmediate(go); }
+        }
+
+        private static void TestQualityPresets()
+        {
+            string[] names = QualitySettings.names;
+            Assert(names != null && names.Length >= 3, $"Expected >=3 quality levels (Baja/Media/Alta), found {names?.Length}.");
+            Assert(Array.IndexOf(names, "Baja") >= 0 && Array.IndexOf(names, "Media") >= 0 && Array.IndexOf(names, "Alta") >= 0,
+                $"Expected Baja/Media/Alta quality names, found: {string.Join(", ", names)}");
+            Assert(AssetDatabase.LoadAssetAtPath<RenderPipelineAsset>("Assets/Settings/URP_Low.asset") != null, "URP_Low.asset missing.");
+            Assert(AssetDatabase.LoadAssetAtPath<RenderPipelineAsset>("Assets/Settings/URP_Medium.asset") != null, "URP_Medium.asset missing.");
+            Assert(AssetDatabase.LoadAssetAtPath<RenderPipelineAsset>("Assets/Settings/PC_RPAsset.asset") != null, "PC_RPAsset.asset missing.");
         }
 
         private static void TestPlayModeStartSceneConfig()

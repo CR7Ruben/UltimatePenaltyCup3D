@@ -31,6 +31,7 @@ namespace UltimatePenaltyCup.Editor
             smr.sharedMesh = mesh;
             smr.bones = bones;
             smr.rootBone = boneMap["Hips"];
+            smr.localBounds = new Bounds(Vector3.zero, new Vector3(1.5f, 2.2f, 1.5f));
             smr.updateWhenOffscreen = true;
             smr.sharedMaterials = new Material[]
             {
@@ -48,22 +49,28 @@ namespace UltimatePenaltyCup.Editor
             SetField(pc, "hips", boneMap["Hips"]);
             SetField(pc, "spine", boneMap["Spine"]);
             SetField(pc, "chest", boneMap["Chest"]);
+            SetField(pc, "neck", boneMap["Neck"]);
             SetField(pc, "torso", boneMap["Chest"]);
             SetField(pc, "head", boneMap["Head"]);
             SetField(pc, "leftArm", boneMap["LeftUpperArm"]);
             SetField(pc, "leftForearm", boneMap["LeftForearm"]);
+            SetField(pc, "leftHand", boneMap["LeftHand"]);
             SetField(pc, "rightArm", boneMap["RightUpperArm"]);
             SetField(pc, "rightForearm", boneMap["RightForearm"]);
+            SetField(pc, "rightHand", boneMap["RightHand"]);
             SetField(pc, "leftLeg", boneMap["LeftThigh"]);
             SetField(pc, "leftShin", boneMap["LeftShin"]);
+            SetField(pc, "leftFoot", boneMap["LeftFoot"]);
             SetField(pc, "rightLeg", boneMap["RightThigh"]);
             SetField(pc, "rightShin", boneMap["RightShin"]);
+            SetField(pc, "rightFoot", boneMap["RightFoot"]);
 
             // Circular Reticle (transparent UI ring sprite)
             PlayerShooter ps = root.AddComponent<PlayerShooter>();
             GameObject reticle = GameObject.CreatePrimitive(PrimitiveType.Quad);
             reticle.name = "AimReticle_Indicator";
             reticle.transform.SetParent(root.transform, false);
+            reticle.transform.localPosition = new Vector3(0.68f, 1.15f, 13.06f);
             reticle.transform.localScale = Vector3.one * 0.62f;
             Object.DestroyImmediate(reticle.GetComponent<Collider>());
 
@@ -73,20 +80,54 @@ namespace UltimatePenaltyCup.Editor
                 reticle.GetComponent<Renderer>().sharedMaterial = reticleMat;
             }
 
-            // 14-point Curved Trajectory Arc
+            // 20-point Simulated Physics Trajectory Arc
             GameObject lineObj = new GameObject("TrajectoryGuideline");
             lineObj.transform.SetParent(root.transform, false);
             LineRenderer lr = lineObj.AddComponent<LineRenderer>();
-            lr.positionCount = 14;
-            lr.startWidth = 0.045f;
-            lr.endWidth = 0.012f;
+            lr.positionCount = 20;
+            lr.startWidth = 0.048f;
+            lr.endWidth = 0.018f;
             lr.useWorldSpace = true;
             Material lineMat = Load<Material>("Assets/Materials/Mat_TrajectoryLine.mat") ?? Load<Material>("Assets/Materials/Mat_Lines_White.mat");
             if (lineMat != null) lr.sharedMaterial = lineMat;
-            lr.startColor = new Color(0.15f, 0.78f, 1.0f, 0.72f);
-            lr.endColor = new Color(1.0f, 0.85f, 0.2f, 0.12f);
+            lr.startColor = new Color(0.15f, 0.78f, 1.0f, 0.85f);
+            lr.endColor = new Color(1.0f, 0.85f, 0.2f, 0.28f);
 
-            ps.SetAimReticle(reticle.transform, lr);
+            // Crisp 3D Directional Arrow anchored at ball pointing straight toward launch vector
+            GameObject arrowRoot = new GameObject("DirectionArrowRoot");
+            arrowRoot.transform.SetParent(root.transform, false);
+            arrowRoot.transform.localPosition = new Vector3(0.68f, 0.135f, 2.10f);
+            Material arrowMat = Load<Material>("Assets/Materials/Mat_Lines_White.mat") ?? lineMat;
+            GameObject shaft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            shaft.name = "Arrow_Shaft";
+            shaft.transform.SetParent(arrowRoot.transform, false);
+            shaft.transform.localPosition = new Vector3(0f, 0f, 1.15f);
+            shaft.transform.localScale = new Vector3(0.06f, 0.012f, 1.95f);
+            shaft.GetComponent<Renderer>().sharedMaterial = arrowMat;
+            shaft.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            Object.DestroyImmediate(shaft.GetComponent<Collider>());
+
+            GameObject tipL = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tipL.name = "Arrow_Head_L";
+            tipL.transform.SetParent(arrowRoot.transform, false);
+            tipL.transform.localPosition = new Vector3(-0.085f, 0f, 2.04f);
+            tipL.transform.localRotation = Quaternion.Euler(0f, 38f, 0f);
+            tipL.transform.localScale = new Vector3(0.055f, 0.014f, 0.30f);
+            tipL.GetComponent<Renderer>().sharedMaterial = arrowMat;
+            tipL.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            Object.DestroyImmediate(tipL.GetComponent<Collider>());
+
+            GameObject tipR = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tipR.name = "Arrow_Head_R";
+            tipR.transform.SetParent(arrowRoot.transform, false);
+            tipR.transform.localPosition = new Vector3(0.085f, 0f, 2.04f);
+            tipR.transform.localRotation = Quaternion.Euler(0f, -38f, 0f);
+            tipR.transform.localScale = new Vector3(0.055f, 0.014f, 0.30f);
+            tipR.GetComponent<Renderer>().sharedMaterial = arrowMat;
+            tipR.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            Object.DestroyImmediate(tipR.GetComponent<Collider>());
+
+            ps.SetAimReticle(reticle.transform, lr, arrowRoot.transform);
 
             PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
@@ -114,9 +155,9 @@ namespace UltimatePenaltyCup.Editor
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
             CapsuleCollider bodyCol = root.AddComponent<CapsuleCollider>();
-            bodyCol.center = new Vector3(0f, 0.95f, 0f);
-            bodyCol.radius = 0.34f;
-            bodyCol.height = 1.85f;
+            bodyCol.center = new Vector3(0f, 0.82f, 0f);
+            bodyCol.radius = 0.22f;
+            bodyCol.height = 1.25f;
 
             var boneMap = BuildSkeletonHierarchy(root.transform, 1.055f, 1.12f, out Transform[] bones, out Transform skeletonRoot);
 
@@ -130,6 +171,7 @@ namespace UltimatePenaltyCup.Editor
             smr.sharedMesh = mesh;
             smr.bones = bones;
             smr.rootBone = boneMap["Hips"];
+            smr.localBounds = new Bounds(Vector3.zero, new Vector3(1.6f, 2.3f, 1.6f));
             smr.updateWhenOffscreen = true;
             smr.sharedMaterials = new Material[]
             {
@@ -148,16 +190,21 @@ namespace UltimatePenaltyCup.Editor
             SetField(gkAI, "hips", boneMap["Hips"]);
             SetField(gkAI, "spine", boneMap["Spine"]);
             SetField(gkAI, "chest", boneMap["Chest"]);
+            SetField(gkAI, "neck", boneMap["Neck"]);
             SetField(gkAI, "torso", boneMap["Chest"]);
             SetField(gkAI, "head", boneMap["Head"]);
             SetField(gkAI, "leftArm", boneMap["LeftUpperArm"]);
             SetField(gkAI, "leftForearm", boneMap["LeftForearm"]);
+            SetField(gkAI, "leftHand", boneMap["LeftHand"]);
             SetField(gkAI, "rightArm", boneMap["RightUpperArm"]);
             SetField(gkAI, "rightForearm", boneMap["RightForearm"]);
+            SetField(gkAI, "rightHand", boneMap["RightHand"]);
             SetField(gkAI, "leftLeg", boneMap["LeftThigh"]);
             SetField(gkAI, "leftShin", boneMap["LeftShin"]);
+            SetField(gkAI, "leftFoot", boneMap["LeftFoot"]);
             SetField(gkAI, "rightLeg", boneMap["RightThigh"]);
             SetField(gkAI, "rightShin", boneMap["RightShin"]);
+            SetField(gkAI, "rightFoot", boneMap["RightFoot"]);
             SetField(gkAI, "leftGloveAnchor", boneMap["LeftHand"]);
             SetField(gkAI, "rightGloveAnchor", boneMap["RightHand"]);
 
@@ -661,7 +708,9 @@ namespace UltimatePenaltyCup.Editor
             tower.transform.localPosition = basePos;
 
             CreateCylinderPart("Mast", tower.transform, new Vector3(0f, 11f, 0f), Quaternion.identity, new Vector3(0.55f, 11f, 0.55f), matMetal, false);
-            CreateBox("LampBank", tower.transform, new Vector3(0f, 22.2f, 0f), new Vector3(3.6f, 1.1f, 1.2f), matMetal, false);
+            CreateBox("LampBank", tower.transform, new Vector3(0f, 22.2f, 0f), new Vector3(3.8f, 1.2f, 1.3f), matMetal, false);
+            Material matGlow = Load<Material>("Assets/Materials/Mat_Lines_White.mat") ?? matMetal;
+            CreateBox("LampFace", tower.transform, new Vector3(0f, 21.7f, 0f), new Vector3(3.3f, 0.7f, 1.36f), matGlow, false);
 
             GameObject lightObj = new GameObject(name + "_Spot");
             lightObj.transform.SetParent(tower.transform, false);

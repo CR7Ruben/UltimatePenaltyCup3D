@@ -22,6 +22,10 @@ namespace UltimatePenaltyCup.Customization
             ? SaveManager.Instance.CurrentData.selectedStadium
             : StadiumType.Cantera;
 
+        public bool IsCustomStadiumOverrideActive => SaveManager.Instance != null &&
+            SaveManager.Instance.CurrentData != null &&
+            SaveManager.Instance.CurrentData.useCustomStadiumOverride;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -61,15 +65,15 @@ namespace UltimatePenaltyCup.Customization
                 return false;
             }
 
-            SaveManager.Instance.SelectStadium(stadium);
             if (SaveManager.Instance.CurrentData != null)
             {
                 SaveManager.Instance.CurrentData.useCustomStadiumOverride = true;
-                SaveManager.Instance.Save();
             }
+            SaveManager.Instance.SelectStadium(stadium);
+            SaveManager.Instance.Save(flushToDisk: true);
             AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
             OnStadiumSelected?.Invoke(stadium);
-            Debug.Log($"[CustomizationManager] Estadio seleccionado: {stadium}");
+            Debug.Log($"[CustomizationManager] Estadio personalizado activo en todas las rondas: {stadium}");
             return true;
         }
 
@@ -78,9 +82,10 @@ namespace UltimatePenaltyCup.Customization
             if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
             {
                 SaveManager.Instance.CurrentData.useCustomStadiumOverride = false;
-                SaveManager.Instance.Save();
+                SaveManager.Instance.Save(flushToDisk: true);
                 AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
                 OnStadiumSelected?.Invoke(SelectedStadium);
+                Debug.Log("[CustomizationManager] Modo Estadio: Automático por ronda.");
             }
         }
     }

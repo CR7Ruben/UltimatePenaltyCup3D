@@ -129,13 +129,13 @@ namespace UltimatePenaltyCup.Gameplay
                 requiredGoals = data.requiredGoals;
                 maxAttempts = data.maxAttempts;
                 GoalkeeperAI.Instance?.Configure(data);
-                StadiumController.Instance?.ApplyForRound(data);
             }
             else
             {
                 requiredGoals = 3;
                 maxAttempts = 5;
             }
+            StadiumController.Instance?.ApplyForRound(data);
 
             CurrentAttempt = 1;
             AttemptsUsed = 0;

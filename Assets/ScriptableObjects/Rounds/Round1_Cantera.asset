@@ -22,7 +22,7 @@ MonoBehaviour:
   stadiumTheme: 0
   goalkeeperName: "Mal\xE1gon"
   goalkeeperTypeTitle: Portero Principiante
-  reactionDelay: 0.25
-  moveSpeed: 4
-  diveSpeed: 5
-  errorProbability: 0.44
+  reactionDelay: 0.2
+  moveSpeed: 4.3
+  diveSpeed: 4.6
+  errorProbability: 0.56

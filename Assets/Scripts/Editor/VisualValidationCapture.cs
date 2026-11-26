@@ -122,6 +122,10 @@ namespace UltimatePenaltyCup.Editor
             customUI.RefreshAll();
             RenderWithCanvas(cam, canvas, "05_Customization.png");
 
+            customUI.SwitchTab(false);
+            customUI.RefreshAll();
+            RenderWithCanvas(cam, canvas, "05b_Customization_Stadiums.png");
+
             ShowOnly(pnlAch);
             var achUI = pnlAch.GetComponent<AchievementsUI>();
             if (achUI != null)
@@ -152,9 +156,21 @@ namespace UltimatePenaltyCup.Editor
             EditorSceneManager.OpenScene("Assets/Scenes/MatchScene.unity", OpenSceneMode.Single);
 
             Camera cam = Camera.main;
-            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
-            StadiumController sc = Object.FindFirstObjectByType<StadiumController>();
+            Canvas canvas = Object.FindAnyObjectByType<Canvas>();
+            StadiumController sc = Object.FindAnyObjectByType<StadiumController>();
             if (sc != null) sc.ApplyVenue(StadiumType.Professional);
+
+            // Position reticle on goal & directional arrow from ball toward goal for clean gameplay capture
+            GameObject reticleObj = GameObject.Find("AimReticle_Indicator");
+            GameObject arrowObj = GameObject.Find("DirectionArrowRoot");
+            GameObject trajObj = GameObject.Find("TrajectoryGuideline");
+            if (reticleObj != null) reticleObj.transform.position = new Vector3(0f, 1.15f, -0.04f);
+            if (arrowObj != null)
+            {
+                arrowObj.transform.position = new Vector3(0f, 0.135f, -11f);
+                arrowObj.transform.LookAt(new Vector3(0f, 1.15f, 0f));
+            }
+            if (trajObj != null) trajObj.SetActive(false);
 
             // 08: Broadcast Penalty Camera Gameplay View + HUD
             var hud = canvas.GetComponent<MatchHUD>();
@@ -165,18 +181,45 @@ namespace UltimatePenaltyCup.Editor
             RenderWithCanvas(cam, canvas, "08_Match_Gameplay.png");
             if (pwr != null) pwr.SetActive(false);
 
-            // 08b: Close-up verification of Skinned Player & Goalkeeper in 3D without UI blocking
+            // 08b..08f: 360-degree anatomical close-up verification of Skinned Player & Goalkeeper
             canvas.gameObject.SetActive(false);
+            if (reticleObj != null) reticleObj.SetActive(false);
+            if (arrowObj != null) arrowObj.SetActive(false);
             Vector3 oldPos = cam.transform.position;
             Quaternion oldRot = cam.transform.rotation;
 
-            cam.transform.position = new Vector3(1.65f, 1.35f, -10.8f);
-            cam.transform.LookAt(new Vector3(-0.65f, 1.05f, -13.15f));
-            RenderCameraOnly(cam, "08b_Character_Ruben_CloseUp.png");
+            Vector3 rubenCenter = new Vector3(-0.68f, 0.95f, -13.10f);
+            cam.transform.position = rubenCenter + new Vector3(0.55f, 0.10f, 2.75f);
+            cam.transform.LookAt(rubenCenter);
+            RenderCameraOnly(cam, "08b_Ruben_Front.png");
 
-            cam.transform.position = new Vector3(1.35f, 1.35f, -3.2f);
-            cam.transform.LookAt(new Vector3(0f, 1.05f, -0.45f));
-            RenderCameraOnly(cam, "08c_Character_Malagon_CloseUp.png");
+            cam.transform.position = rubenCenter + new Vector3(-0.20f, 0.15f, -2.70f);
+            cam.transform.LookAt(rubenCenter);
+            RenderCameraOnly(cam, "08c_Ruben_Back.png");
+
+            cam.transform.position = rubenCenter + new Vector3(-2.65f, 0.08f, 0.20f);
+            cam.transform.LookAt(rubenCenter);
+            RenderCameraOnly(cam, "08d_Ruben_Left.png");
+
+            cam.transform.position = rubenCenter + new Vector3(2.65f, 0.08f, 0.20f);
+            cam.transform.LookAt(rubenCenter);
+            RenderCameraOnly(cam, "08e_Ruben_Right.png");
+
+            cam.transform.position = new Vector3(1.35f, 1.20f, -3.4f);
+            cam.transform.LookAt(new Vector3(0f, 0.98f, -0.45f));
+            RenderCameraOnly(cam, "08f_Malagon_CloseUp.png");
+
+            // Capture all 4 Stadium Venues cleanly
+            cam.transform.position = new Vector3(0.58f, 1.88f, -16.85f);
+            cam.transform.LookAt(new Vector3(-0.08f, 1.15f, 0f));
+            if (sc != null)
+            {
+                sc.ApplyVenue(StadiumType.Cantera); RenderCameraOnly(cam, "13_Stadium_Cantera.png");
+                sc.ApplyVenue(StadiumType.Night); RenderCameraOnly(cam, "14_Stadium_Night.png");
+                sc.ApplyVenue(StadiumType.Professional); RenderCameraOnly(cam, "15_Stadium_Professional.png");
+                sc.ApplyVenue(StadiumType.WorldCup); RenderCameraOnly(cam, "16_Stadium_WorldCup.png");
+                sc.ApplyVenue(StadiumType.Professional);
+            }
 
             cam.transform.position = oldPos;
             cam.transform.rotation = oldRot;

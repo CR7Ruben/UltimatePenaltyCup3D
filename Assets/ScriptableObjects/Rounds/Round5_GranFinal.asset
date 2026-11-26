@@ -22,7 +22,7 @@ MonoBehaviour:
   stadiumTheme: 3
   goalkeeperName: "Mal\xE1gon"
   goalkeeperTypeTitle: "Portero \xC9lite"
-  reactionDelay: 0.09
-  moveSpeed: 8.8
-  diveSpeed: 11
-  errorProbability: 0.08
+  reactionDelay: 0.125
+  moveSpeed: 6.1
+  diveSpeed: 7.1
+  errorProbability: 0.25

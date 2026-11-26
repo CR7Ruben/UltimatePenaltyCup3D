@@ -41,6 +41,7 @@ namespace UltimatePenaltyCup.Editor
             Debug.Log("==========================================================================");
 
             ConfigureOfficialPlayerSettings();
+            ConfigureQualityPresets();
             ConfigureLogoTexture();
             UIStyleGenerator.GenerateAllUISprites();
             CreateAllMaterials();
@@ -59,6 +60,18 @@ namespace UltimatePenaltyCup.Editor
             Debug.Log("==========================================================================");
             Debug.Log(">>> ULTIMATE PENALTY CUP 3D: COMPLETE PROJECT SETUP FINISHED SUCCESSFULLY! <<<");
             Debug.Log("==========================================================================");
+        }
+
+        public static void RebuildGameplayConfigsAndScenes()
+        {
+            CreateAllScriptableObjects();
+            CharacterAndStadiumUpgrader.RebuildGoalkeeperPrefab();
+            BuildMainMenuScene();
+            BuildMatchScene();
+            SetupBuildSettings();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[ProjectSetupBuilder] RebuildGameplayConfigsAndScenes completed.");
         }
 
         private static void LoadUISprites()
@@ -90,21 +103,168 @@ namespace UltimatePenaltyCup.Editor
             PlayerSettings.resizableWindow = true;
         }
 
-        #region 1. Logo Texture Configuration
+        #region 1. Logo Texture Configuration (Strips Baked Gray Pillarboxes -> Clean Alpha Square)
         public static void ConfigureLogoTexture()
         {
-            string logoPath = "Assets/Art/Logo/UltimatePenaltyCup3D_Logo.jpg";
-            if (!File.Exists(logoPath)) return;
+            string rawLogoPath = "Assets/Art/Logo/UltimatePenaltyCup3D_Logo.jpg";
+            string cleanLogoPath = "Assets/Art/Logo/UltimatePenaltyCup3D_Logo_Clean.png";
+            if (!File.Exists(rawLogoPath)) return;
 
-            TextureImporter importer = AssetImporter.GetAtPath(logoPath) as TextureImporter;
-            if (importer != null)
+            TextureImporter rawImporter = AssetImporter.GetAtPath(rawLogoPath) as TextureImporter;
+            if (rawImporter != null)
             {
-                importer.textureType = TextureImporterType.Sprite;
-                importer.spriteImportMode = SpriteImportMode.Single;
-                importer.alphaIsTransparency = false;
-                importer.mipmapEnabled = false;
-                importer.SaveAndReimport();
+                bool changed = !rawImporter.isReadable ||
+                               rawImporter.textureType != TextureImporterType.Sprite ||
+                               rawImporter.mipmapEnabled ||
+                               rawImporter.textureCompression != TextureImporterCompression.Uncompressed;
+                if (changed)
+                {
+                    rawImporter.textureType = TextureImporterType.Sprite;
+                    rawImporter.spriteImportMode = SpriteImportMode.Single;
+                    rawImporter.alphaIsTransparency = false;
+                    rawImporter.mipmapEnabled = false;
+                    rawImporter.isReadable = true;
+                    rawImporter.textureCompression = TextureImporterCompression.Uncompressed;
+                    rawImporter.SaveAndReimport();
+                }
             }
+
+            Texture2D src = AssetDatabase.LoadAssetAtPath<Texture2D>(rawLogoPath);
+            if (src == null) return;
+
+            int w = src.width;
+            int h = src.height;
+            Color32[] pixels = src.GetPixels32();
+
+            // Detect outer uniform gray vertical bars from left and right
+            bool IsGrayBarColumn(int x)
+            {
+                int first = h / 8;
+                int last = h - h / 8;
+                int count = 0;
+                int grayLike = 0;
+                float minLum = 1f, maxLum = 0f;
+                for (int y = first; y < last; y += 2)
+                {
+                    Color32 c = pixels[y * w + x];
+                    float r = c.r / 255f, g = c.g / 255f, b = c.b / 255f;
+                    float lum = 0.299f * r + 0.587f * g + 0.114f * b;
+                    float chroma = Mathf.Max(r, Mathf.Max(g, b)) - Mathf.Min(r, Mathf.Min(g, b));
+                    if (lum < minLum) minLum = lum;
+                    if (lum > maxLum) maxLum = lum;
+                    if (chroma < 0.06f && lum > 0.14f && lum < 0.42f) grayLike++;
+                    count++;
+                }
+                return count > 0 && (grayLike / (float)count) > 0.90f && (maxLum - minLum) < 0.12f;
+            }
+
+            int xMin = 0;
+            while (xMin < w / 3 && IsGrayBarColumn(xMin)) xMin++;
+            int xMax = w - 1;
+            while (xMax > (w * 2) / 3 && IsGrayBarColumn(xMax)) xMax--;
+
+            // Safety trim inside any JPEG edge ringing (4px margin)
+            xMin = Mathf.Clamp(xMin + 4, 0, w / 2 - 32);
+            xMax = Mathf.Clamp(xMax - 4, w / 2 + 32, w - 1);
+
+            int cropW = Mathf.Min(h, xMax - xMin + 1);
+            int center = (xMin + xMax) / 2;
+            int startX = Mathf.Clamp(center - cropW / 2, 0, w - cropW);
+            int startY = Mathf.Clamp((h - cropW) / 2, 0, h - cropW);
+
+            Texture2D cleanTex = new Texture2D(cropW, cropW, TextureFormat.RGBA32, false);
+            Color32[] dst = new Color32[cropW * cropW];
+            float cornerR = cropW * 0.08f;
+
+            for (int y = 0; y < cropW; y++)
+            {
+                for (int x = 0; x < cropW; x++)
+                {
+                    Color32 col = pixels[(startY + y) * w + (startX + x)];
+
+                    // Smooth rounded corners so badge integrates seamlessly without hard box borders
+                    float dx = Mathf.Max(0f, Mathf.Max(cornerR - x, x - (cropW - 1 - cornerR)));
+                    float dy = Mathf.Max(0f, Mathf.Max(cornerR - y, y - (cropW - 1 - cornerR)));
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    float alpha = Mathf.Clamp01(cornerR + 0.5f - dist);
+
+                    col.a = (byte)Mathf.RoundToInt(alpha * 255f);
+                    dst[y * cropW + x] = col;
+                }
+            }
+
+            cleanTex.SetPixels32(dst);
+            cleanTex.Apply();
+            File.WriteAllBytes(cleanLogoPath, cleanTex.EncodeToPNG());
+            Object.DestroyImmediate(cleanTex);
+            AssetDatabase.ImportAsset(cleanLogoPath, ImportAssetOptions.ForceUpdate);
+
+            TextureImporter cleanImporter = AssetImporter.GetAtPath(cleanLogoPath) as TextureImporter;
+            if (cleanImporter != null)
+            {
+                cleanImporter.textureType = TextureImporterType.Sprite;
+                cleanImporter.spriteImportMode = SpriteImportMode.Single;
+                cleanImporter.alphaIsTransparency = true;
+                cleanImporter.mipmapEnabled = false;
+                cleanImporter.filterMode = FilterMode.Bilinear;
+                cleanImporter.textureCompression = TextureImporterCompression.Uncompressed;
+                var impSettings = new TextureImporterSettings();
+                cleanImporter.ReadTextureSettings(impSettings);
+                impSettings.spriteMeshType = SpriteMeshType.FullRect;
+                cleanImporter.SetTextureSettings(impSettings);
+                cleanImporter.SaveAndReimport();
+            }
+            Debug.Log($"[ProjectSetupBuilder] Generated clean square alpha logo ({cropW}x{cropW}) without gray sidebars at {cleanLogoPath}");
+        }
+
+        public static void ConfigureQualityPresets()
+        {
+            var highAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.RenderPipelineAsset>("Assets/Settings/PC_RPAsset.asset");
+            if (highAsset == null) return;
+
+            var lowAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Low.asset", renderScale: 0.85f, msaa: 1, shadowDist: 26f, cascades: 1, shadowRes: 512);
+            var medAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Medium.asset", renderScale: 1.0f, msaa: 2, shadowDist: 36f, cascades: 2, shadowRes: 1024);
+
+            // Bind quality level render pipeline assets matching ProjectSettings/QualitySettings.asset (0=Baja, 1=Media, 2=Alta)
+            int count = QualitySettings.names != null ? QualitySettings.names.Length : 0;
+            if (count >= 3)
+            {
+                int prev = QualitySettings.GetQualityLevel();
+                QualitySettings.SetQualityLevel(0, false); QualitySettings.renderPipeline = lowAsset;
+                QualitySettings.SetQualityLevel(1, false); QualitySettings.renderPipeline = medAsset;
+                QualitySettings.SetQualityLevel(2, false); QualitySettings.renderPipeline = highAsset;
+                QualitySettings.SetQualityLevel(Mathf.Clamp(prev, 0, count - 1), false);
+            }
+            AssetDatabase.SaveAssets();
+        }
+
+        private static UnityEngine.Rendering.RenderPipelineAsset EnsureClonedUrpAsset(
+            string path, float renderScale, int msaa, float shadowDist, int cascades, int shadowRes)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.RenderPipelineAsset>(path);
+            if (asset == null)
+            {
+                AssetDatabase.CopyAsset("Assets/Settings/PC_RPAsset.asset", path);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.RenderPipelineAsset>(path);
+            }
+            if (asset != null)
+            {
+                SerializedObject so = new SerializedObject(asset);
+                var spScale = so.FindProperty("m_RenderScale");
+                if (spScale != null) spScale.floatValue = renderScale;
+                var spMsaa = so.FindProperty("m_MSAA");
+                if (spMsaa != null) spMsaa.intValue = msaa;
+                var spDist = so.FindProperty("m_ShadowDistance");
+                if (spDist != null) spDist.floatValue = shadowDist;
+                var spCascades = so.FindProperty("m_ShadowCascadeCount");
+                if (spCascades != null) spCascades.intValue = cascades;
+                var spShadowRes = so.FindProperty("m_MainLightShadowmapResolution");
+                if (spShadowRes != null) spShadowRes.intValue = shadowRes;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+            }
+            return asset;
         }
         #endregion
 
@@ -216,26 +376,26 @@ namespace UltimatePenaltyCup.Editor
         #region 3. ScriptableObjects Generation
         public static void CreateAllScriptableObjects()
         {
-            // --- 5 Balanced Rounds ---
+            // --- 5 Balanced Rounds (Natural human-flow goalkeeper save progression: R1 15-25% -> R5 55-65%) ---
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round1_Cantera.asset", 1, "Cantera",
                 "Estadio de entrenamiento. Anota 3 goles en un máximo de 5 intentos para avanzar.",
-                3, 5, 500, 300, StadiumType.Cantera, "Portero Principiante", 0.25f, 4.0f, 5.0f, 0.44f);
+                3, 5, 500, 300, StadiumType.Cantera, "Portero Principiante", 0.20f, 4.3f, 4.6f, 0.56f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round2_LigaLocal.asset", 2, "Liga Local",
                 "Ambiente competitivo nocturno. El arquero gana agilidad lateral y reflejos.",
-                3, 5, 500, 450, StadiumType.Night, "Portero Intermedio", 0.20f, 5.2f, 6.5f, 0.32f);
+                3, 5, 500, 450, StadiumType.Night, "Portero Intermedio", 0.185f, 4.7f, 5.1f, 0.50f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round3_LigaProfesional.asset", 3, "Liga Profesional",
                 "Estadio profesional a máxima capacidad. Meta exigente: 4 de 5 penales.",
-                4, 5, 650, 650, StadiumType.Professional, "Portero Profesional", 0.16f, 6.4f, 8.0f, 0.22f);
+                4, 5, 650, 650, StadiumType.Professional, "Portero Profesional", 0.165f, 5.1f, 5.7f, 0.42f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round4_Semifinal.asset", 4, "Semifinal",
                 "Tensión de eliminatoria bajo reflectores. Coloca tus disparos en la escuadra.",
-                4, 5, 800, 900, StadiumType.Night, "Portero Avanzado", 0.12f, 7.6f, 9.5f, 0.14f);
+                4, 5, 800, 900, StadiumType.Night, "Portero Avanzado", 0.145f, 5.6f, 6.4f, 0.34f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round5_GranFinal.asset", 5, "Gran Final",
                 "¡El título en juego! Supera al Malágon de élite con 4 goles en el Estadio Mundial.",
-                4, 5, 1200, 1500, StadiumType.WorldCup, "Portero Élite", 0.09f, 8.8f, 11.0f, 0.08f);
+                4, 5, 1200, 1500, StadiumType.WorldCup, "Portero Élite", 0.125f, 6.1f, 7.1f, 0.25f);
 
             // --- 5 Ball Items (wired with real rendered 3D preview sprites!) ---
             CreateBallSO("Assets/ScriptableObjects/Items/Ball_Classic.asset", BallType.Classic, "Balón Clásico",
@@ -436,7 +596,7 @@ namespace UltimatePenaltyCup.Editor
         }
         #endregion
 
-        #region 5. Main Menu Scene Builder (Live 3D Stadium + Modern Broadcast UI)
+        #region 5. Main Menu Scene Builder (Live 3D Stadium + Hero Player + Modern Broadcast UI)
         public static void BuildMainMenuScene()
         {
             LoadUISprites();
@@ -453,32 +613,53 @@ namespace UltimatePenaltyCup.Editor
             }
             GameObject goalPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/GoalPrefab.prefab");
             if (goalPrefab != null) PrefabUtility.InstantiatePrefab(goalPrefab);
+
             GameObject ballPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/BallPrefab.prefab");
             if (ballPrefab != null)
             {
                 GameObject b = PrefabUtility.InstantiatePrefab(ballPrefab) as GameObject;
-                b.transform.position = new Vector3(0f, 0.11f, -11f);
+                b.transform.position = new Vector3(0.32f, 0.115f, -10.85f);
             }
 
-            // Orbiting Broadcast Camera
+            // Full 3D Hero Player Rubén González standing beside the ball on pitch!
+            GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player_RubenGonzalez.prefab");
+            if (playerPrefab != null)
+            {
+                GameObject heroPlayer = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
+                heroPlayer.name = "HeroShowcase_Ruben";
+                heroPlayer.transform.position = new Vector3(0.95f, 0f, -10.45f);
+                heroPlayer.transform.rotation = Quaternion.Euler(0f, 166f, 0f);
+                var shooter = heroPlayer.GetComponent<Player.PlayerShooter>();
+                if (shooter != null) shooter.enabled = false;
+                var controller = heroPlayer.GetComponent<Player.PlayerController>();
+                if (controller != null) controller.SetControlEnabled(true);
+                Transform reticle = heroPlayer.transform.Find("AimReticle_Indicator");
+                if (reticle != null) reticle.gameObject.SetActive(false);
+                Transform traj = heroPlayer.transform.Find("TrajectoryGuideline");
+                if (traj != null) traj.gameObject.SetActive(false);
+                Transform arrow = heroPlayer.transform.Find("DirectionArrowRoot");
+                if (arrow != null) arrow.gameObject.SetActive(false);
+            }
+
+            // Orbiting Broadcast Camera framing full-body hero + ball + goal behind
             GameObject camObj = new GameObject("Main Camera");
             camObj.tag = "MainCamera";
             Camera cam = camObj.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.03f, 0.07f, 0.16f);
+            cam.backgroundColor = new Color(0.06f, 0.12f, 0.24f);
             cam.fieldOfView = 44f;
-            camObj.transform.position = new Vector3(4.5f, 3.8f, -16f);
-            camObj.transform.LookAt(new Vector3(-1.5f, 1.2f, -4f));
+            camObj.transform.position = new Vector3(1.15f, 1.65f, -14.15f);
+            camObj.transform.LookAt(new Vector3(0.10f, 1.05f, -5.8f));
             camObj.AddComponent<AudioListener>();
             camObj.AddComponent<MenuCameraOrbit>();
 
-            // Cinematic Light
+            // Cinematic Key Light
             GameObject lightObj = new GameObject("Directional Light");
             Light light = lightObj.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.color = new Color(1.0f, 0.95f, 0.88f);
-            light.intensity = 1.35f;
-            lightObj.transform.rotation = Quaternion.Euler(45f, -35f, 0f);
+            light.color = new Color(1.0f, 0.96f, 0.90f);
+            light.intensity = 1.45f;
+            lightObj.transform.rotation = Quaternion.Euler(38f, 28f, 0f);
 
             // EventSystem
             GameObject eventSystem = new GameObject("EventSystem");
@@ -551,23 +732,33 @@ namespace UltimatePenaltyCup.Editor
             BuildMainMenuPanels(canvasObj.transform, menuUI, balls, stadiums, rounds, achievements);
 
             EditorSceneManager.SaveScene(scene, scenePath);
-            Debug.Log("[ProjectSetupBuilder] MainMenu.unity rebuilt with live 3D stadium & broadcast UI.");
+            Debug.Log("[ProjectSetupBuilder] MainMenu.unity rebuilt with live 3D stadium, hero player & broadcast UI.");
         }
 
         private static void BuildMainMenuPanels(Transform canvasT, MainMenuUI menuUI, List<BallItemSO> balls, List<StadiumItemSO> stadiums, List<RoundDataSO> rounds, List<AchievementSO> achievements)
         {
-            Sprite logoSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Logo/UltimatePenaltyCup3D_Logo.jpg");
+            Sprite logoSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Logo/UltimatePenaltyCup3D_Logo_Clean.png")
+                ?? AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Logo/UltimatePenaltyCup3D_Logo.jpg");
 
-            // ========== PANEL 1: MAIN MENU (Transparent over 3D Stadium with clean left navy column) ==========
+            // ========== PANEL 1: MAIN MENU (Transparent over 3D Stadium with sleek left glass panel) ==========
             GameObject pnlMain = CreateFullScreenPanel("Panel_MainMenu", canvasT, Color.clear, null);
 
-            GameObject scrim = CreateUIImage("LeftScrim", pnlMain.transform, Vector2.zero, new Vector2(580f, 1080f), new Color(0.027f, 0.067f, 0.122f, 0.84f), null);
+            GameObject scrim = CreateUIImage("LeftScrim", pnlMain.transform, Vector2.zero, new Vector2(560f, 1080f), new Color(0.024f, 0.058f, 0.115f, 0.86f), null);
             RectTransform scrimRt = scrim.GetComponent<RectTransform>();
             scrimRt.anchorMin = new Vector2(0f, 0f);
             scrimRt.anchorMax = new Vector2(0f, 1f);
             scrimRt.pivot = new Vector2(0f, 0.5f);
             scrimRt.anchoredPosition = Vector2.zero;
-            scrimRt.sizeDelta = new Vector2(580f, 0f);
+            scrimRt.sizeDelta = new Vector2(560f, 0f);
+
+            // Sleek electric-blue accent edge line separating sidebar and live 3D pitch
+            GameObject scrimEdge = CreateUIImage("LeftScrimAccentEdge", scrim.transform, Vector2.zero, new Vector2(4f, 0f), ColElectric, null);
+            RectTransform edgeRt = scrimEdge.GetComponent<RectTransform>();
+            edgeRt.anchorMin = new Vector2(1f, 0f);
+            edgeRt.anchorMax = new Vector2(1f, 1f);
+            edgeRt.pivot = new Vector2(1f, 0.5f);
+            edgeRt.anchoredPosition = Vector2.zero;
+            edgeRt.sizeDelta = new Vector2(4f, 0f);
 
             // Top-Right Currency, Record & Studio Pill Bar
             GameObject topRightBar = CreateContainer("TopRightBadges", pnlMain.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-36f, -28f), new Vector2(540f, 64f));
@@ -581,30 +772,28 @@ namespace UltimatePenaltyCup.Editor
             GameObject scorePill = CreatePillBadge("ScoreBadge", topRightBar.transform, 270f, ColNavyMid, sTrophy, ColGold, "Récord: 0 pts", out TMP_Text txtHighScore);
             GameObject coinsPill = CreatePillBadge("CoinsBadge", topRightBar.transform, 220f, ColNavyMid, sCoin, ColGold, "0", out TMP_Text txtCoins);
 
-            // Left Column Container (Logo + Buttons)
-            GameObject leftCol = CreateContainer("LeftNavigationColumn", pnlMain.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(290f, 0f), new Vector2(460f, 940f));
+            // Left Column Container (Clean Alpha Square Logo + Buttons — ZERO grey pillarbox bars!)
+            GameObject leftCol = CreateContainer("LeftNavigationColumn", pnlMain.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(280f, 0f), new Vector2(450f, 970f));
             var vCol = leftCol.AddComponent<VerticalLayoutGroup>();
-            vCol.spacing = 14f;
-            vCol.padding = new RectOffset(10, 10, 10, 10);
+            vCol.spacing = 13f;
+            vCol.padding = new RectOffset(8, 8, 8, 8);
             vCol.childAlignment = TextAnchor.UpperCenter;
             vCol.childControlWidth = true;
             vCol.childControlHeight = false;
 
-            // Clean Framed Logo (deep navy matching logo backdrop — ZERO grey margins)
-            GameObject logoFrame = CreateUIImage("LogoCardFrame", leftCol.transform, Vector2.zero, new Vector2(440f, 250f), new Color(0.025f, 0.055f, 0.12f, 1f), sCard);
-            var mask = logoFrame.AddComponent<Mask>();
-            mask.showMaskGraphic = true;
             if (logoSprite != null)
             {
-                GameObject logoObj = CreateUIImage("LogoImage", logoFrame.transform, Vector2.zero, new Vector2(436f, 250f), Color.white, logoSprite);
-                logoObj.GetComponent<Image>().preserveAspect = true;
+                GameObject logoObj = CreateUIImage("LogoImage", leftCol.transform, Vector2.zero, new Vector2(280f, 280f), Color.white, logoSprite);
+                Image logoImg = logoObj.GetComponent<Image>();
+                logoImg.preserveAspect = true;
+                logoImg.type = Image.Type.Simple;
             }
             else
             {
-                CreateUIText("TitleText", logoFrame.transform, Vector2.zero, new Vector2(420f, 120f), "ULTIMATE PENALTY CUP 3D", 42, ColGold, FontStyles.Bold);
+                CreateUIText("TitleText", leftCol.transform, Vector2.zero, new Vector2(420f, 120f), "ULTIMATE PENALTY CUP 3D", 42, ColGold, FontStyles.Bold);
             }
 
-            CreateUIText("StudioTagline", leftCol.transform, Vector2.zero, new Vector2(440f, 34f), "A&R GAME LABS  •  TEMPORADA 2026", 17, ColGold, FontStyles.Bold);
+            CreateUIText("StudioTagline", leftCol.transform, Vector2.zero, new Vector2(440f, 30f), "A&R GAME LABS  •  TEMPORADA 2026", 16, ColGold, FontStyles.Bold);
 
             // Primary & Secondary Menu Buttons
             Button btnPlay     = CreateStyledButton("BtnPlay",     leftCol.transform, new Vector2(420f, 74f), "JUGAR",          ColGreen,    ColWhite, 28);
@@ -625,7 +814,10 @@ namespace UltimatePenaltyCup.Editor
 
             // ========== PANEL 2: ROUND SELECT ==========
             GameObject pnlRoundSelect = CreateFullScreenPanel("Panel_RoundSelect", canvasT, ColNavyDeep, null);
-            Button btnBackRounds = CreateHeaderBar(pnlRoundSelect.transform, "SELECCIÓN DE RONDA", "Elige una etapa del torneo — Supera cada meta para desbloquear la siguiente", out _);
+            Button btnBackRounds = CreateHeaderBar(pnlRoundSelect.transform, "SELECCIÓN DE RONDA", "Elige una etapa del torneo — Supera cada meta para desbloquear la siguiente", out GameObject roundsHeaderRight);
+            roundsHeaderRight.GetComponent<RectTransform>().sizeDelta = new Vector2(620f, 64f);
+            GameObject stadStatusBadge = CreateUIImage("ActiveStadiumBadge", roundsHeaderRight.transform, Vector2.zero, new Vector2(610f, 48f), ColNavyDeep, sPill);
+            TMP_Text txtActiveStadMode = CreateUIText("TxtActiveStadiumMode", stadStatusBadge.transform, Vector2.zero, new Vector2(580f, 40f), "ESTADIO: AUTOMÁTICO POR RONDA", 17, ColGreen, FontStyles.Bold);
             RoundSelectUI roundSelectUI = pnlRoundSelect.AddComponent<RoundSelectUI>();
 
             GameObject roundsRow = CreateContainer("RoundsRow", pnlRoundSelect.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -35f), new Vector2(1800f, 700f));
@@ -648,6 +840,7 @@ namespace UltimatePenaltyCup.Editor
             SetSerializedField(roundSelectUI, "roundCards", cardList.ToArray());
             SetSerializedField(roundSelectUI, "btnBack", btnBackRounds);
             SetSerializedField(roundSelectUI, "mainMenuUI", menuUI);
+            SetSerializedField(roundSelectUI, "txtActiveStadiumMode", txtActiveStadMode);
 
             // ========== PANEL 3: SHOP ==========
             GameObject pnlShop = CreateFullScreenPanel("Panel_Shop", canvasT, ColNavyDeep, null);
@@ -721,22 +914,22 @@ namespace UltimatePenaltyCup.Editor
             foreach (var s in stadiums) CreateShopCard(customStadiumsTab.transform, ShopItemCardUI.CardType.Stadium, null, s, isCustomizationOnly: true);
 
             // Right Large Active Preview Inspector
-            GameObject previewCard = CreateUIImage("ActivePreviewCard", pnlCustom.transform, new Vector2(610f, -40f), new Vector2(460f, 670f), ColCardBg, sCard);
+            GameObject previewCard = CreateUIImage("ActivePreviewCard", pnlCustom.transform, new Vector2(610f, -45f), new Vector2(460f, 700f), ColCardBg, sCard);
             var vPrev = previewCard.AddComponent<VerticalLayoutGroup>();
-            vPrev.spacing = 16f;
-            vPrev.padding = new RectOffset(28, 28, 30, 30);
+            vPrev.spacing = 14f;
+            vPrev.padding = new RectOffset(28, 28, 28, 28);
             vPrev.childAlignment = TextAnchor.UpperCenter;
             vPrev.childControlWidth = true;
             vPrev.childControlHeight = false;
 
             TMP_Text txtPrevCat    = CreateUIText("TxtPreviewCat", previewCard.transform, Vector2.zero, new Vector2(400f, 34f), "BALÓN EQUIPADO", 18, ColGold, FontStyles.Bold);
             Sprite defaultBallIcon = balls.Count > 0 && balls[0] != null ? balls[0].icon : null;
-            GameObject imgPrevHolder = CreateUIImage("ImgActivePreview", previewCard.transform, Vector2.zero, new Vector2(360f, 280f), Color.white, defaultBallIcon);
+            GameObject imgPrevHolder = CreateUIImage("ImgActivePreview", previewCard.transform, Vector2.zero, new Vector2(360f, 260f), Color.white, defaultBallIcon);
             imgPrevHolder.GetComponent<Image>().preserveAspect = true;
             TMP_Text txtPrevTitle  = CreateUIText("TxtPreviewTitle", previewCard.transform, Vector2.zero, new Vector2(400f, 46f), "Balón Clásico", 30, ColWhite, FontStyles.Bold);
-            TMP_Text txtPrevDesc   = CreateUIText("TxtPreviewDesc", previewCard.transform, Vector2.zero, new Vector2(400f, 90f), "", 20, ColMuted, FontStyles.Normal);
-            TMP_Text txtStadMode   = CreateUIText("TxtStadiumMode", previewCard.transform, Vector2.zero, new Vector2(400f, 40f), "Modo Estadio: Automático", 18, ColElectric, FontStyles.Bold);
-            Button btnAutoStad     = CreateStyledButton("BtnAutoRoundStadium", previewCard.transform, new Vector2(360f, 52f), "USAR ESTADIO DE CADA RONDA", ColElectric, ColWhite, 17);
+            TMP_Text txtPrevDesc   = CreateUIText("TxtPreviewDesc", previewCard.transform, Vector2.zero, new Vector2(400f, 88f), "", 19, ColMuted, FontStyles.Normal);
+            TMP_Text txtStadMode   = CreateUIText("TxtStadiumMode", previewCard.transform, Vector2.zero, new Vector2(400f, 60f), "MODO ESTADIO: AUTOMÁTICO", 17, ColGreen, FontStyles.Bold);
+            Button btnAutoStad     = CreateStyledButton("BtnAutoRoundStadium", previewCard.transform, new Vector2(380f, 54f), "USAR AUTOMÁTICO POR RONDA", ColElectric, ColWhite, 17);
 
             SetSerializedField(customUI, "btnTabBalls", btnCustomBalls);
             SetSerializedField(customUI, "btnTabStadiums", btnCustomStadiums);
@@ -884,7 +1077,7 @@ namespace UltimatePenaltyCup.Editor
             if (playerPrefab != null)
             {
                 GameObject playerInstance = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
-                playerInstance.transform.position = new Vector3(-0.65f, 0f, -13.15f);
+                playerInstance.transform.position = new Vector3(-0.68f, 0f, -13.10f);
                 playerInstance.transform.rotation = Quaternion.identity;
             }
 
@@ -897,15 +1090,15 @@ namespace UltimatePenaltyCup.Editor
                 gkInstance.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
             }
 
-            // Broadcast Penalty Camera WITH MatchCameraController attached!
+            // Broadcast Penalty Camera WITH MatchCameraController attached (full-body head-to-cleats framing!)
             GameObject camObj = new GameObject("Main Camera");
             camObj.tag = "MainCamera";
             Camera cam = camObj.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.72f, 0.95f);
-            cam.fieldOfView = 46f;
-            camObj.transform.position = new Vector3(0.55f, 2.05f, -15.4f);
-            camObj.transform.LookAt(new Vector3(0f, 1.25f, 0f));
+            cam.fieldOfView = 49f;
+            camObj.transform.position = new Vector3(0.58f, 1.92f, -17.35f);
+            camObj.transform.LookAt(new Vector3(-0.08f, 1.05f, 0f));
             camObj.AddComponent<AudioListener>();
             camObj.AddComponent<MatchCameraController>();
 
