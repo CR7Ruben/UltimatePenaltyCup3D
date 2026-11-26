@@ -81,6 +81,7 @@ namespace UltimatePenaltyCup.Gameplay
             bool isCorner = CheckIfCornerOrPrecision(localPoint);
 
             GoalNetRipple.Instance?.TriggerImpact(entryPoint, ball.Velocity);
+            AudioManager.Instance?.PlaySfx(SfxType.NetSwish);
             AudioManager.Instance?.PlaySfx(SfxType.S02_Goal);
             OnGoalScored?.Invoke(isCorner, entryPoint);
         }

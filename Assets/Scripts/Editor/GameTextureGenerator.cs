@@ -44,13 +44,15 @@ namespace UltimatePenaltyCup.Editor
                 GenerateRainbowBallTexture("Tex_Ball_Rainbow");
                 GenerateGoldBallTexture("Tex_Ball_Gold");
 
-                // 4. Kits & Characters (Strict separation: pure skin body vs frontal face vs front/back jerseys)
+                // 4. Kits & Characters (Strict separation: pure skin body vs frontal face vs front/back jerseys + #7)
                 GeneratePlayerJerseyTexture("Tex_Jersey_Ruben");
                 GenerateGoalkeeperJerseyTexture("Tex_Jersey_Malagon");
-                GenerateSkinBodyTexture("Tex_Skin_Body", new Color(0.90f, 0.72f, 0.58f));
-                GeneratePlayerFaceTexture("Tex_Face_Ruben", new Color(0.90f, 0.72f, 0.58f), new Color(0.16f, 0.11f, 0.08f));
-                GeneratePlayerFaceTexture("Tex_Face_Malagon", new Color(0.84f, 0.66f, 0.52f), new Color(0.12f, 0.09f, 0.07f));
+                GenerateSkinBodyTexture("Tex_Skin_Body", new Color(0.89f, 0.70f, 0.56f));
+                GeneratePlayerFaceTexture("Tex_Face_Ruben", new Color(0.89f, 0.70f, 0.56f), new Color(0.15f, 0.10f, 0.08f), new Color(0.24f, 0.15f, 0.09f), hasStubble: false);
+                GeneratePlayerFaceTexture("Tex_Face_Malagon", new Color(0.83f, 0.65f, 0.51f), new Color(0.12f, 0.09f, 0.07f), new Color(0.18f, 0.14f, 0.10f), hasStubble: true);
                 GenerateGlovesTexture("Tex_Gloves_Malagon");
+                GenerateFabricNormalMap("Tex_Fabric_Normal");
+                GenerateSkinNormalMap("Tex_Skin_Normal");
 
                 // 5. Stadium Environment
                 GenerateStadiumBannersTexture("Tex_Stadium_Banners");
@@ -393,25 +395,36 @@ namespace UltimatePenaltyCup.Editor
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Subtle diagonal athletic weave + clean sleeve region (x: 0..64 kept pure fabric)
-                    bool isDiagonal = ((x + y) / 36) % 2 == 0;
-                    Color c = Color.Lerp(royalBlue, deepNavy, isDiagonal ? 0.30f : 0.0f);
+                    // Micro athletic knit weave + soft diagonal jacquard pattern
+                    bool isDiagonal = ((x + y) / 34) % 2 == 0;
+                    float knit = ((x % 4 == 0 || y % 4 == 0) ? -0.015f : 0.01f);
+                    Color c = Color.Lerp(royalBlue, deepNavy, isDiagonal ? 0.28f : 0.0f);
 
-                    // Top collar gold & navy rim
-                    if (y > 470) c = goldTrim;
-                    else if (y > 452) c = deepNavy;
+                    // Subtle side-seam & shoulder athletic shading (kept inside panel interiors)
+                    int localX = x < 256 ? x : (x - 256);
+                    float centerShade = 1f - Mathf.Pow(Mathf.Abs(localX - 128) / 128f, 2f) * 0.12f;
+                    // Soft realistic lower-torso jersey crease waves
+                    float fold = Mathf.Sin(y * 0.11f + localX * 0.05f) * 0.016f * Mathf.Clamp01((260f - y) / 200f);
+                    c = new Color(
+                        Mathf.Clamp01(c.r * centerShade + knit + fold),
+                        Mathf.Clamp01(c.g * centerShade + knit + fold),
+                        Mathf.Clamp01(c.b * centerShade + knit + fold), 1f);
 
-                    // Bottom hem gold stripe
-                    if (y < 22) c = goldTrim;
+                    // Top collar V-trim + navy/gold rim
+                    if (y > 472) c = goldTrim;
+                    else if (y > 454) c = deepNavy;
 
-                    // LEFT HALF (x: 0..255) = FRONT OF JERSEY (with clean outer band x < 55 / x > 215 for sleeves)
+                    // Bottom hem gold stripe & stitching line
+                    if (y < 20) c = goldTrim;
+                    else if (y >= 20 && y <= 23) c = deepNavy;
+
+                    // LEFT HALF (x: 0..255) = FRONT OF JERSEY (clean sleeve region x < 64)
                     if (x < 256)
                     {
-                        // Subtle athletic chest sash confined inside [65..220] so sleeves NEVER sample it
-                        if (x >= 65 && x <= 220 && Mathf.Abs((x - 128) - (y - 260) * 0.4f) < 16)
-                            c = Color.Lerp(c, goldTrim, 0.25f);
+                        if (x >= 68 && x <= 222 && Mathf.Abs((x - 130) - (y - 260) * 0.42f) < 16)
+                            c = Color.Lerp(c, goldTrim, 0.28f);
 
-                        // Gold A&R crest shield on left chest (x: 158..194, y: 312..362)
+                        // Front subtle small athletic chest number accent? Keep classic A&R shield crest cleanly on left chest
                         if (x >= 158 && x <= 194 && y >= 312 && y <= 362)
                         {
                             bool border = x <= 162 || x >= 190 || y <= 316 || y >= 358;
@@ -419,25 +432,48 @@ namespace UltimatePenaltyCup.Editor
                             if (x >= 171 && x <= 181 && y >= 325 && y <= 349) c = crispWhite;
                         }
                     }
-                    // RIGHT HALF (x: 256..511) = BACK OF JERSEY WITH CRISP #10
+                    // RIGHT HALF (x: 256..511) = BACK OF JERSEY WITH CRISP #7
                     else
                     {
-                        int bx = x - 256; // 0..255 local back X (left->right when looking at back from -Z)
-                        // Number "10" centered on back (bx: 64..188, y: 165..335)
-                        // "1" on the LEFT (bx: 64..98)
-                        bool isOne = (bx >= 76 && bx <= 98 && y >= 165 && y <= 335) ||
-                                     (bx >= 64 && bx <= 76 && y >= 305 && y <= 335);
-                        // "0" on the RIGHT (bx: 118..188)
-                        bool inOuterZero = bx >= 118 && bx <= 188 && y >= 165 && y <= 335;
-                        bool inInnerZero = bx >= 140 && bx <= 166 && y >= 190 && y <= 310;
-                        bool isZero = inOuterZero && !inInnerZero;
+                        int bx = x - 256; // 0..255 local back X (left->right when viewed from behind -Z)
+                        // Sporty block/angled "7" centered horizontally around bx=128 (bx: 84..174, y: 156..340)
+                        // Top horizontal crossbar (y: 304..340, bx: 84..174) + left tip drop serif (bx: 84..100, y: 282..306)
+                        bool topBar = bx >= 84 && bx <= 174 && y >= 304 && y <= 340;
+                        bool topLeftSerif = bx >= 84 && bx <= 102 && y >= 282 && y <= 306;
 
-                        if (isOne || isZero) c = crispWhite;
+                        // Angled diagonal stem descending from upper-right (bx=172, y=304) to lower-left (bx=114, y=156)
+                        bool diagFill = false;
+                        bool diagOutline = false;
+                        if (y >= 156 && y <= 316)
+                        {
+                            float tDiag = (y - 156f) / (316f - 156f); // 0 bottom .. 1 top
+                            float centerX = Mathf.Lerp(116f, 160f, tDiag);
+                            float halfStroke = Mathf.Lerp(15.5f, 17.0f, tDiag);
+                            diagFill = Mathf.Abs(bx - centerX) <= halfStroke;
+                            diagOutline = Mathf.Abs(bx - centerX) <= halfStroke + 4.5f;
+                        }
 
-                        // Clean horizontal nameplate accent bar above #10
+                        bool isSeven = topBar || topLeftSerif || diagFill;
+                        bool inSevenOuterBox = (bx >= 80 && bx <= 178 && y >= 152 && y <= 344) &&
+                                               ((bx >= 80 && bx <= 178 && y >= 300 && y <= 344) ||
+                                                (bx >= 80 && bx <= 106 && y >= 278 && y <= 308) ||
+                                                diagOutline);
+
+                        if (isSeven)
+                        {
+                            // Crisp white athletic print with tiny inner jersey pinstripe texture removed for clean legibility
+                            c = crispWhite;
+                        }
+                        else if (inSevenOuterBox)
+                        {
+                            // Deep navy + gold athletic keyline outline framing the #7
+                            c = deepNavy;
+                        }
+
+                        // Clean horizontal nameplate bar above #7 ("GONZALEZ" styling stripe)
                         if (bx >= 78 && bx <= 178 && y >= 372 && y <= 388)
                         {
-                            c = Color.Lerp(c, goldTrim, 0.85f);
+                            c = Color.Lerp(c, goldTrim, 0.88f);
                         }
                     }
 
@@ -454,7 +490,8 @@ namespace UltimatePenaltyCup.Editor
             int height = 512;
             Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, true);
 
-            Color vibrantOrange = new Color(0.96f, 0.40f, 0.04f);
+            Color vibrantOrange = new Color(0.95f, 0.39f, 0.05f);
+            Color deepAmber = new Color(0.76f, 0.24f, 0.03f);
             Color darkCharcoal = new Color(0.09f, 0.11f, 0.16f);
             Color goldAccent = new Color(1.0f, 0.80f, 0.22f);
             Color crispWhite = new Color(0.97f, 0.98f, 1.0f);
@@ -466,14 +503,16 @@ namespace UltimatePenaltyCup.Editor
                     int localX = x < 256 ? x : (x - 256);
                     int chevron = Mathf.Abs(localX - 128) + y;
                     bool isDarkBand = (chevron / 32) % 3 == 0;
-                    Color c = isDarkBand ? darkCharcoal : vibrantOrange;
+                    float knit = ((x % 4 == 0 || y % 4 == 0) ? -0.015f : 0.01f);
+                    Color baseCol = Color.Lerp(vibrantOrange, deepAmber, ((x / 18 + y / 18) % 2 == 0) ? 0.20f : 0f);
+                    Color c = isDarkBand ? darkCharcoal : baseCol;
+                    c = new Color(Mathf.Clamp01(c.r + knit), Mathf.Clamp01(c.g + knit), Mathf.Clamp01(c.b + knit), 1f);
 
                     if (y > 468) c = darkCharcoal;
                     if (y < 20) c = goldAccent;
 
                     if (x < 256)
                     {
-                        // Front chest crest
                         if (localX >= 158 && localX <= 194 && y >= 312 && y <= 362)
                         {
                             bool border = localX <= 162 || localX >= 190 || y <= 316 || y >= 358;
@@ -482,7 +521,6 @@ namespace UltimatePenaltyCup.Editor
                     }
                     else
                     {
-                        // Back of GK jersey: bold "#1" centered (localX: 108..148, y: 165..335)
                         bool isOne = (localX >= 114 && localX <= 140 && y >= 165 && y <= 335) ||
                                      (localX >= 98 && localX <= 114 && y >= 305 && y <= 335);
                         if (isOne) c = crispWhite;
@@ -497,17 +535,18 @@ namespace UltimatePenaltyCup.Editor
 
         private static void GenerateSkinBodyTexture(string fileName, Color skinTone)
         {
-            int size = 128;
+            int size = 256;
             Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float n = (Mathf.PerlinNoise(x * 0.2f, y * 0.2f) - 0.5f) * 0.025f;
+                    float pore = (Mathf.PerlinNoise(x * 0.25f, y * 0.25f) - 0.5f) * 0.022f;
+                    float warmth = Mathf.Sin((y / (float)size) * Mathf.PI) * 0.018f;
                     Color c = new Color(
-                        Mathf.Clamp01(skinTone.r + n),
-                        Mathf.Clamp01(skinTone.g + n * 0.9f),
-                        Mathf.Clamp01(skinTone.b + n * 0.8f), 1f);
+                        Mathf.Clamp01(skinTone.r + pore + warmth),
+                        Mathf.Clamp01(skinTone.g + pore * 0.85f),
+                        Mathf.Clamp01(skinTone.b + pore * 0.7f - warmth * 0.5f), 1f);
                     tex.SetPixel(x, y, c);
                 }
             }
@@ -515,59 +554,137 @@ namespace UltimatePenaltyCup.Editor
             SaveTextureToFile(tex, fileName);
         }
 
-        private static void GeneratePlayerFaceTexture(string fileName, Color skinTone, Color hairTone)
+        private static void GeneratePlayerFaceTexture(string fileName, Color skinTone, Color hairTone, Color irisColor, bool hasStubble)
         {
-            int size = 256;
+            int size = 512;
             Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
 
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    Color c = skinTone;
+                    float pore = (Mathf.PerlinNoise(x * 0.18f, y * 0.18f) - 0.5f) * 0.018f;
+                    Color c = new Color(
+                        Mathf.Clamp01(skinTone.r + pore),
+                        Mathf.Clamp01(skinTone.g + pore * 0.85f),
+                        Mathf.Clamp01(skinTone.b + pore * 0.75f), 1f);
 
-                    // Subtle cheek warmth
-                    float dCheekL = Vector2.Distance(new Vector2(x, y), new Vector2(78, 108));
-                    float dCheekR = Vector2.Distance(new Vector2(x, y), new Vector2(178, 108));
-                    if (dCheekL < 22f) c = Color.Lerp(c, new Color(0.95f, 0.58f, 0.52f), (1f - dCheekL / 22f) * 0.25f);
-                    if (dCheekR < 22f) c = Color.Lerp(c, new Color(0.95f, 0.58f, 0.52f), (1f - dCheekR / 22f) * 0.25f);
+                    // Soft under-jaw / temple ambient contour
+                    float edgeDist = Mathf.Abs(x - 256f) / 256f;
+                    if (edgeDist > 0.65f) c *= Mathf.Lerp(1f, 0.90f, (edgeDist - 0.65f) / 0.35f);
 
-                    // Eyebrows (clean curved arches)
-                    if ((x >= 72 && x <= 112 && y >= 149 && y <= 157) ||
-                        (x >= 144 && x <= 184 && y >= 149 && y <= 157))
+                    // Cheekbone warmth
+                    float dCheekL = Vector2.Distance(new Vector2(x, y), new Vector2(154, 214));
+                    float dCheekR = Vector2.Distance(new Vector2(x, y), new Vector2(358, 214));
+                    if (dCheekL < 46f) c = Color.Lerp(c, new Color(0.92f, 0.56f, 0.50f), (1f - dCheekL / 46f) * 0.22f);
+                    if (dCheekR < 46f) c = Color.Lerp(c, new Color(0.92f, 0.56f, 0.50f), (1f - dCheekR / 46f) * 0.22f);
+
+                    // Subtle stubble jaw/chin shading for Malagon
+                    if (hasStubble && y < 192 && Mathf.Abs(x - 256f) < 135f)
+                    {
+                        float mask = Mathf.SmoothStep(0f, 1f, (192f - y) / 90f) * (1f - Mathf.Pow(Mathf.Abs(x - 256f) / 135f, 2f));
+                        float stipple = Mathf.PerlinNoise(x * 0.6f, y * 0.6f) * 0.65f + 0.35f;
+                        c = Color.Lerp(c, skinTone * 0.68f, mask * stipple * 0.35f);
+                    }
+
+                    // Natural arched eyebrows (left & right)
+                    float browArchL = -Mathf.Pow((x - 182f) / 40f, 2f) * 7f;
+                    float browArchR = -Mathf.Pow((x - 330f) / 40f, 2f) * 7f;
+                    if ((x >= 138 && x <= 224 && y >= 296 + browArchL && y <= 311 + browArchL) ||
+                        (x >= 288 && x <= 374 && y >= 296 + browArchR && y <= 311 + browArchR))
                     {
                         c = hairTone;
                     }
 
-                    // Expressive Eyes (left center 92,132 | right center 164,132)
-                    float dEyeL = Vector2.Distance(new Vector2(x, y), new Vector2(92, 132));
-                    float dEyeR = Vector2.Distance(new Vector2(x, y), new Vector2(164, 132));
-                    if (dEyeL < 12f || dEyeR < 12f)
+                    // Soft eye socket shade around eyes
+                    float dSockL = Vector2.Distance(new Vector2(x, y), new Vector2(182, 260));
+                    float dSockR = Vector2.Distance(new Vector2(x, y), new Vector2(330, 260));
+                    if (dSockL < 34f && dSockL >= 20f) c = Color.Lerp(c, skinTone * 0.84f, 0.25f);
+                    if (dSockR < 34f && dSockR >= 20f) c = Color.Lerp(c, skinTone * 0.84f, 0.25f);
+
+                    // Expressive Human Eyes (almond sclera + colored iris + pupil + upper lash + catchlights)
+                    DrawHumanEye(ref c, x, y, 182f, 260f, irisColor, hairTone);
+                    DrawHumanEye(ref c, x, y, 330f, 260f, irisColor, hairTone);
+
+                    // Sculpted nose bridge highlight + side shadow + nostril recesses
+                    if (Mathf.Abs(x - 256) < 16 && y >= 198 && y <= 258)
                     {
-                        float d = Mathf.Min(dEyeL, dEyeR);
-                        c = d < 6.5f ? new Color(0.12f, 0.08f, 0.06f) : new Color(0.98f, 0.98f, 0.99f);
-                        // White glint dot
-                        if (Vector2.Distance(new Vector2(x, y), new Vector2(95, 135)) < 2.2f ||
-                            Vector2.Distance(new Vector2(x, y), new Vector2(167, 135)) < 2.2f)
-                        {
-                            c = Color.white;
-                        }
+                        float center = 1f - Mathf.Abs(x - 256f) / 16f;
+                        c = Color.Lerp(c, skinTone * 1.07f, center * 0.35f);
+                    }
+                    if (Vector2.Distance(new Vector2(x, y), new Vector2(242, 198)) < 6f ||
+                        Vector2.Distance(new Vector2(x, y), new Vector2(270, 198)) < 6f)
+                    {
+                        c = Color.Lerp(c, skinTone * 0.65f, 0.55f);
                     }
 
-                    // Soft nose bridge shadow
-                    if (x >= 122 && x <= 134 && y >= 102 && y <= 126)
+                    // Natural lips + mouth line (y: 142..166)
+                    float mouthCurve = Mathf.Pow((x - 256f) / 50f, 2f) * 7f;
+                    if (x >= 210 && x <= 302 && y >= (144 + mouthCurve) && y <= (164 + mouthCurve))
                     {
-                        c = Color.Lerp(c, skinTone * 0.85f, 0.5f);
-                    }
-
-                    // Confident athletic smile (y: 74..83)
-                    float smileCurve = Mathf.Pow((x - 128f) / 26f, 2f) * 5f;
-                    if (x >= 104 && x <= 152 && y >= (74 + smileCurve) && y <= (82 + smileCurve))
-                    {
-                        c = new Color(0.72f, 0.34f, 0.34f);
+                        float midY = 154f + mouthCurve;
+                        bool crease = Mathf.Abs(y - midY) < 2.2f;
+                        c = crease ? new Color(0.45f, 0.20f, 0.20f) : new Color(0.76f, 0.42f, 0.40f);
                     }
 
                     tex.SetPixel(x, y, c);
+                }
+            }
+            tex.Apply();
+            SaveTextureToFile(tex, fileName);
+        }
+
+        private static void DrawHumanEye(ref Color c, int x, int y, float cx, float cy, Color irisCol, Color lashCol)
+        {
+            float dx = (x - cx) / 24f;
+            float dy = (y - cy) / 15f;
+            float almond = dx * dx + dy * dy;
+            if (almond <= 1.0f)
+            {
+                c = new Color(0.96f, 0.96f, 0.97f); // Sclera
+                float irisR = Vector2.Distance(new Vector2(x, y), new Vector2(cx, cy));
+                if (irisR < 11.5f)
+                {
+                    c = irisR < 5.8f ? new Color(0.06f, 0.05f, 0.05f) : irisCol;
+                    // Catchlight glints
+                    if (Vector2.Distance(new Vector2(x, y), new Vector2(cx + 4f, cy + 4f)) < 2.8f)
+                        c = Color.white;
+                }
+                // Upper lash line
+                if (dy > 0.52f) c = lashCol;
+            }
+        }
+
+        private static void GenerateFabricNormalMap(string fileName)
+        {
+            int size = 256;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float wx = Mathf.Sin(x * 1.4f) * 0.22f + Mathf.Cos(y * 1.4f) * 0.14f;
+                    float wy = Mathf.Sin(y * 1.4f) * 0.22f + (Mathf.PerlinNoise(x * 0.12f, y * 0.12f) - 0.5f) * 0.18f;
+                    Vector3 n = new Vector3(wx, wy, 1f).normalized;
+                    tex.SetPixel(x, y, new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, 1f));
+                }
+            }
+            tex.Apply();
+            SaveTextureToFile(tex, fileName);
+        }
+
+        private static void GenerateSkinNormalMap(string fileName)
+        {
+            int size = 128;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float hx = (Mathf.PerlinNoise((x + 1) * 0.45f, y * 0.45f) - Mathf.PerlinNoise((x - 1) * 0.45f, y * 0.45f)) * 0.25f;
+                    float hy = (Mathf.PerlinNoise(x * 0.45f, (y + 1) * 0.45f) - Mathf.PerlinNoise(x * 0.45f, (y - 1) * 0.45f)) * 0.25f;
+                    Vector3 n = new Vector3(-hx, -hy, 1f).normalized;
+                    tex.SetPixel(x, y, new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, 1f));
                 }
             }
             tex.Apply();
@@ -839,14 +956,25 @@ namespace UltimatePenaltyCup.Editor
             ApplyTextureToMaterial("Assets/Materials/Mat_Ball_Rainbow.mat", "Tex_Ball_Rainbow.png", Vector2.one);
             ApplyTextureToMaterial("Assets/Materials/Mat_Ball_Gold.mat", "Tex_Ball_Gold.png", Vector2.one);
 
-            // Kits & Characters (Strict separation of body skin vs head face!)
-            ApplyTextureToMaterial("Assets/Materials/Mat_Player_Kit.mat", "Tex_Jersey_Ruben.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_Goalkeeper_Kit.mat", "Tex_Jersey_Malagon.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_Skin.mat", "Tex_Skin_Body.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_Skin_Body.mat", "Tex_Skin_Body.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Ruben.mat", "Tex_Face_Ruben.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Malagon.mat", "Tex_Face_Malagon.png", Vector2.one);
-            ApplyTextureToMaterial("Assets/Materials/Mat_GK_Gloves.mat", "Tex_Gloves_Malagon.png", Vector2.one);
+            // Kits & Characters (Strict separation of body skin vs head face + non-plastic athletic PBR!)
+            Texture2D fabricNormal = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/Tex_Fabric_Normal.png");
+            Texture2D skinNormal = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/Tex_Skin_Normal.png");
+
+            ApplyTextureToMaterial("Assets/Materials/Mat_Player_Kit.mat", "Tex_Jersey_Ruben.png", Vector2.one, fabricNormal, 0.25f, 0.18f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Goalkeeper_Kit.mat", "Tex_Jersey_Malagon.png", Vector2.one, fabricNormal, 0.25f, 0.18f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Skin.mat", "Tex_Skin_Body.png", Vector2.one, skinNormal, 0.18f, 0.26f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Skin_Body.mat", "Tex_Skin_Body.png", Vector2.one, skinNormal, 0.18f, 0.26f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Ruben.mat", "Tex_Face_Ruben.png", Vector2.one, skinNormal, 0.12f, 0.26f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Malagon.mat", "Tex_Face_Malagon.png", Vector2.one, skinNormal, 0.14f, 0.26f);
+            ApplyTextureToMaterial("Assets/Materials/Mat_GK_Gloves.mat", "Tex_Gloves_Malagon.png", Vector2.one, fabricNormal, 0.22f, 0.34f);
+
+            SetMaterialSurfaceProps("Assets/Materials/Mat_Player_Shorts.mat", fabricNormal, 0.22f, 0.16f, clearBaseMap: true);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_GK_Shorts.mat", fabricNormal, 0.22f, 0.16f, clearBaseMap: true);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_Player_Socks.mat", fabricNormal, 0.20f, 0.18f, clearBaseMap: true);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_GK_Socks.mat", fabricNormal, 0.20f, 0.18f, clearBaseMap: true);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_Hair_Dark.mat", null, 0f, 0.22f);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_Boots_Player.mat", null, 0f, 0.42f);
+            SetMaterialSurfaceProps("Assets/Materials/Mat_Boots_GK.mat", null, 0f, 0.42f);
 
             // Stadium Surroundings
             ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Banners.mat", "Tex_Stadium_Banners.png", new Vector2(6f, 1f));
@@ -855,27 +983,15 @@ namespace UltimatePenaltyCup.Editor
             ApplyTextureToMaterial("Assets/Materials/Mat_GoldTrophy.mat", "Tex_Trophy_Gold.png", new Vector2(2f, 2f));
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[GameTextureGenerator] All materials updated with high-resolution textures.");
+            Debug.Log("[GameTextureGenerator] All materials updated with high-resolution PBR textures.");
         }
 
         private static void ApplyGrassMaterial(string matPath, string texName, Texture2D normalMap, Vector2 tiling)
         {
-            ApplyTextureToMaterial(matPath, texName, tiling);
-            Material mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-            if (mat != null && normalMap != null)
-            {
-                if (mat.HasProperty("_BumpMap"))
-                {
-                    mat.SetTexture("_BumpMap", normalMap);
-                    mat.SetFloat("_BumpScale", 0.35f);
-                    mat.EnableKeyword("_NORMALMAP");
-                }
-                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.14f);
-                EditorUtility.SetDirty(mat);
-            }
+            ApplyTextureToMaterial(matPath, texName, tiling, normalMap, 0.35f, 0.14f);
         }
 
-        private static void ApplyTextureToMaterial(string matPath, string texName, Vector2 tiling)
+        private static void ApplyTextureToMaterial(string matPath, string texName, Vector2 tiling, Texture2D normalMap = null, float bumpScale = 0.25f, float smoothness = -1f)
         {
             Material mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
             Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(Path.Combine(TEXTURE_FOLDER, texName).Replace('\\', '/'));
@@ -884,15 +1000,44 @@ namespace UltimatePenaltyCup.Editor
             {
                 mat.mainTexture = tex;
                 mat.mainTextureScale = tiling;
+                mat.mainTextureOffset = Vector2.zero;
                 if (mat.HasProperty("_BaseMap"))
                 {
                     mat.SetTexture("_BaseMap", tex);
                     mat.SetTextureScale("_BaseMap", tiling);
+                    mat.SetTextureOffset("_BaseMap", Vector2.zero);
                 }
                 if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
                 mat.color = Color.white;
+                if (normalMap != null || smoothness >= 0f)
+                {
+                    SetMaterialSurfaceProps(matPath, normalMap, bumpScale, smoothness);
+                }
                 EditorUtility.SetDirty(mat);
             }
+        }
+
+        private static void SetMaterialSurfaceProps(string matPath, Texture2D normalMap, float bumpScale, float smoothness, bool clearBaseMap = false)
+        {
+            Material mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat == null) return;
+            if (clearBaseMap)
+            {
+                mat.mainTexture = null;
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", null);
+            }
+            if (normalMap != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.SetTexture("_BumpMap", normalMap);
+                if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", bumpScale);
+                mat.EnableKeyword("_NORMALMAP");
+            }
+            if (smoothness >= 0f && mat.HasProperty("_Smoothness"))
+            {
+                mat.SetFloat("_Smoothness", smoothness);
+            }
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+            EditorUtility.SetDirty(mat);
         }
         #endregion
     }

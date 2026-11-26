@@ -78,16 +78,24 @@ namespace UltimatePenaltyCup.UI
         private void HandleBallPurchased(BallItemSO ball)
         {
             RefreshAllCards();
-            ShowFeedback($"¡Has comprado {ball.displayName}!", true);
+            string msg = $"¡Has desbloqueado {ball.displayName}!";
+            ShowFeedback(msg, true);
+            NotificationManager.EnsureInstance().ShowToast("COMPRA EXITOSA", msg, NotificationKind.Success);
         }
 
         private void HandleStadiumPurchased(StadiumItemSO stadium)
         {
             RefreshAllCards();
-            ShowFeedback($"¡Has comprado {stadium.displayName}!", true);
+            string msg = $"¡Has desbloqueado {stadium.displayName}!";
+            ShowFeedback(msg, true);
+            NotificationManager.EnsureInstance().ShowToast("ESTADIO DESBLOQUEADO", msg, NotificationKind.Reward);
         }
 
-        private void HandlePurchaseFailed(string err) => ShowFeedback(err, false);
+        private void HandlePurchaseFailed(string err)
+        {
+            ShowFeedback(err, false);
+            NotificationManager.EnsureInstance().ShowToast("COMPRA NO DISPONIBLE", err, NotificationKind.Warning);
+        }
         private void HandleCoinsChanged(int c, int d) => UpdateCoins();
 
         public void SwitchTab(bool showBalls, bool silent = false)

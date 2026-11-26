@@ -155,8 +155,24 @@ namespace UltimatePenaltyCup.Editor
             Object.DestroyImmediate(rt);
 
             string path = Path.Combine(PREVIEWS_DIR, fileName).Replace('\\', '/');
-            File.WriteAllBytes(path, tex.EncodeToPNG());
+            byte[] pngBytes = tex.EncodeToPNG();
             Object.DestroyImmediate(tex);
+
+            for (int attempt = 0; attempt < 4; attempt++)
+            {
+                try
+                {
+                    File.WriteAllBytes(path, pngBytes);
+                    break;
+                }
+                catch (IOException) when (attempt < 3)
+                {
+                    System.GC.Collect();
+                    System.GC.WaitForPendingFinalizers();
+                    AssetDatabase.ReleaseCachedFileHandles();
+                    System.Threading.Thread.Sleep(60);
+                }
+            }
 
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             TextureImporter imp = AssetImporter.GetAtPath(path) as TextureImporter;

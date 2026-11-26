@@ -10,44 +10,49 @@ Assets/Scripts/UltimatePenaltyCup.Runtime.asmdef
 │    ├── GameManager                 (Escenas, vSync/60 FPS, calidad Baja/Media/Alta, singletons)
 │    ├── GameStateManager            (Máquina de estados UI/Partida)
 │    ├── RoundManager                (Catálogo de 5 RoundDataSO + sincronización)
-│    ├── SaveManager                 (Persistencia JSON retrocompatible en PlayerPrefs)
+│    ├── SaveManager                 (Persistencia JSON retrocompatible v2 en PlayerPrefs)
 │    ├── CurrencyManager             (Monedas, puntos y código PENALTY2026 en Dev/Editor)
 │    ├── ScoreManager                (Puntuación escalonada y rachas)
 │    ├── ShopManager                 (Compras de BallItemSO / StadiumItemSO)
 │    ├── CustomizationManager        (Equipar balón, estadio fijo o automático por ronda)
 │    ├── AchievementManager          (7 logros, progreso en vivo, sin duplicación)
-│    ├── AudioManager                (Música, SFX y síntesis procedimental sin GC por muestra)
-│    └── StandalonePerfBenchmarkRunner (Telemetría real 1920x1080 con flag -runPerfBenchmark1080)
+│    ├── AudioManager                (5 canales BGM/SFX/Público/UI + síntesis procedimental sin GC)
+│    ├── NotificationManager         (Cola de toasts, tarjetas de logros y modales unscaledTime)
+│    └── StandalonePerfBenchmarkRunner (Telemetría real 1920x1080 + presets con -runPerfBenchmark1080)
 └── MatchScene (Índice 1)
      ├── PenaltyManager              (Máquina de estados del penal, fin anticipado y timeouts)
-     ├── GoalkeeperAI                (IA con 9 estilos de atajada, 17 huesos y recuperación progresiva)
-     ├── PlayerController            (Init en Awake, 17 huesos y contacto pie-balón sincronizado)
+     ├── GoalkeeperAI                (IA con 9 estilos, 22 huesos, 5 BlendShapes y recuperación progresiva)
+     ├── PlayerController            (Init en Awake, 22 huesos, 5 BlendShapes y contacto pie-balón)
      ├── PlayerShooter               (Solucionador balístico unificado, deadzone 36px y flecha 3D)
      ├── BallController              (Orden [200], constantes físicas compartidas, Physics.SyncTransforms)
-     ├── GoalDetector                (Cruce único garantizado + backup continuo en FixedUpdate)
+     ├── GoalDetector                (Cruce único garantizado + SfxType.NetSwish + backup FixedUpdate)
      ├── GoalNetRipple               (Mallas dinámicas MarkDynamic y culling espacial)
-     ├── MatchCameraController       (Encuadre de cuerpo completo en z=-17.35 con SmoothDamp)
-     ├── StadiumController           (Orden [-50], 4 estadios con batching estático por material)
-     └── Canvas_MatchHUD             (MatchHUD, PauseManager/PauseUI, RoundEndManager/RoundEndUI)
+     ├── MatchCameraController       (Intro cinematográfica + encuadre completo en z=-17.35 SmoothDamp)
+     ├── StadiumController           (Orden [-50], 4 estadios, batching estático y vallas MPB)
+     ├── CrowdManager                (Espectadores GPU-instanced CrowdInstanced.shader por estadio/calidad)
+     ├── StadiumFlagWave             (Ondulación eólica de banderines de esquina)
+     ├── StadiumAmbienceController   (Audio ambiental 3D en 4 sectores y reacciones dinámicas)
+     └── Canvas_MatchHUD             (MatchHUD banners animados, PauseManager/UI, RoundEndManager/UI)
 
 Assets/Scripts/Editor/UltimatePenaltyCup.Editor.asmdef
-└── PlayModeStartSceneConfig, ProjectSetupBuilder, HumanoidMeshBuilder, CharacterAndStadiumUpgrader,
-    GameTextureGenerator, UIStyleGenerator, AssetPreviewRenderer, GameSystemsTestRunner (19 tests),
-    VisualValidationCapture (32 capturas), GameBuildPipeline
+└── PlayModeStartSceneConfig, ProjectSetupBuilder, HumanoidMeshBuilder (22 huesos + BlendShapes),
+    CharacterAndStadiumUpgrader, GameTextureGenerator (dorsal #7, rostros 512p, normales PBR),
+    UIStyleGenerator, AssetPreviewRenderer, GameSystemsTestRunner (24 tests),
+    VisualValidationCapture (38 capturas 1080p), GameBuildPipeline
 
 Assets/Tests/PlayMode/UltimatePenaltyCup.PlayModeTests.asmdef
-└── GameplaySimulationPlayModeTests (7 suites [UnityTest]: flujo UI, balística, 100 tiros, frustum, 20 estadios)
+└── GameplaySimulationPlayModeTests (10 suites [UnityTest] + captura de cuadros para GIFs)
 ```
 
 ---
 
 ## Presets gráficos URP (`ProjectSettings/QualitySettings.asset`)
 
-| Nivel | Nombre UI | Render Pipeline Asset | Render Scale | MSAA | Sombras / Cascadas |
-|---|---|---|---:|---:|---|
-| `0` | **Baja** | `Assets/Settings/URP_Low.asset` | `0.85×` | Desactivado | `26 m`, `1` cascada (`512`) |
-| `1` | **Media** | `Assets/Settings/URP_Medium.asset` | `1.00×` | `2×` | `36 m`, `2` cascadas (`1024`) |
-| `2` | **Alta** | `Assets/Settings/PC_RPAsset.asset` | `1.00×` | `4×` | `45 m`, `2` cascadas (`2048`) |
+| Nivel | Nombre UI | Render Pipeline Asset | Render Scale | MSAA | Sombras / Cascadas | Densidad Público |
+|---|---|---|---:|---:|---|---:|
+| `0` | **Baja** | `Assets/Settings/URP_Low.asset` | `0.80×` | Desactivado | `26 m`, `1` cascada (`512`) | `35%` |
+| `1` | **Media** | `Assets/Settings/URP_Medium.asset` | `0.92×` | Desactivado | `36 m`, `1` cascada (`1024`) | `65%` |
+| `2` | **Alta** | `Assets/Settings/PC_RPAsset.asset` | `1.00×` | Desactivado | `42 m`, `2` cascadas (`1024`) | `100%` |
 
 ---
 
@@ -57,14 +62,14 @@ Assets/Tests/PlayMode/UltimatePenaltyCup.PlayModeTests.asmdef
 |---|---|---|
 | `UltimatePenaltyCup.Core` | `GameEnums`, `GameManager`, `GameStateManager`, `StandalonePerfBenchmarkRunner` | Estados globales, calidad, 60 FPS pacing y telemetría 1080p |
 | `UltimatePenaltyCup.Levels` | `RoundDataSO`, `RoundManager` | Datos calibrados de rondas 1–5 y progresión |
-| `UltimatePenaltyCup.Gameplay` | `PenaltyManager`, `BallController`, `GoalDetector`, `GoalNetRipple`, `MatchCameraController`, `StadiumController`, `MenuCameraOrbit` | Ciclo del penal, física PhysX/Magnus sincronizada, cámara y 4 estadios |
-| `UltimatePenaltyCup.Player` | `PlayerController`, `PlayerShooter` | Rig de 17 huesos sincronizado con el balón y solucionador balístico |
-| `UltimatePenaltyCup.Goalkeeper` | `GoalkeeperAI` | IA de 8 estados, 9 estilos de estirada y barrido continuo en `FixedUpdate` |
+| `UltimatePenaltyCup.Gameplay` | `PenaltyManager`, `BallController`, `GoalDetector`, `GoalNetRipple`, `MatchCameraController`, `StadiumController`, `CrowdManager`, `StadiumFlagWave`, `MenuCameraOrbit` | Ciclo del penal, física PhysX/Magnus sincronizada, cámara, 4 estadios y público GPU |
+| `UltimatePenaltyCup.Player` | `PlayerController`, `PlayerShooter` | Rig de 22 huesos, 5 BlendShapes y solucionador balístico |
+| `UltimatePenaltyCup.Goalkeeper` | `GoalkeeperAI` | IA de 8 estados, 22 huesos, 5 BlendShapes, 9 estilos de estirada y barrido continuo |
 | `UltimatePenaltyCup.Economy` | `CurrencyManager`, `ScoreManager` | Economía, balance no negativo y bonos |
-| `UltimatePenaltyCup.SaveSystem` | `SaveData`, `SaveManager` | Serialización JSON retrocompatible |
+| `UltimatePenaltyCup.SaveSystem` | `SaveData`, `SaveManager` | Serialización JSON retrocompatible (incluye `crowdVolume`, `uiVolume`) |
 | `UltimatePenaltyCup.Shop` | `ShopManager`, `BallItemSO`, `StadiumItemSO` | Catálogo y validación de compras |
 | `UltimatePenaltyCup.Customization` | `CustomizationManager` | Equipamiento de balones y estadios |
 | `UltimatePenaltyCup.Achievements` | `AchievementManager`, `AchievementSO` | Evaluación y progreso de logros |
-| `UltimatePenaltyCup.Audio` | `AudioManager` | BGM/SFX con síntesis matemática procedimental |
-| `UltimatePenaltyCup.UI` | `MainMenuUI`, `RoundSelectUI`, `ShopUI`, `ShopItemCardUI`, `CustomizationUI`, `AchievementsUI`, `SettingsUI`, `MatchHUD`, `PauseUI`, `RoundEndUI`, `UIButtonAnimator` | Interfaz deportiva responsiva 1920×1080 |
-| `UltimatePenaltyCup.Editor` | `PlayModeStartSceneConfig`, `ProjectSetupBuilder`, `HumanoidMeshBuilder`, `CharacterAndStadiumUpgrader`, `GameTextureGenerator`, `UIStyleGenerator`, `AssetPreviewRenderer`, `GameSystemsTestRunner`, `VisualValidationCapture`, `GameBuildPipeline` | Inicio en MainMenu, arte, rig 17 huesos, presets, tests, capturas y build |
+| `UltimatePenaltyCup.Audio` | `AudioManager`, `StadiumAmbienceController` | 5 canales BGM/SFX/UI/Público 3D en 4 sectores con síntesis procedimental |
+| `UltimatePenaltyCup.UI` | `MainMenuUI`, `RoundSelectUI`, `ShopUI`, `ShopItemCardUI`, `CustomizationUI`, `AchievementsUI`, `SettingsUI`, `MatchHUD`, `PauseUI`, `RoundEndUI`, `NotificationManager`, `UIPanelTransition`, `UIButtonAnimator` | Interfaz deportiva responsiva 1920×1080, alertas, modales y transiciones |
+| `UltimatePenaltyCup.Editor` | `PlayModeStartSceneConfig`, `ProjectSetupBuilder`, `HumanoidMeshBuilder`, `CharacterAndStadiumUpgrader`, `GameTextureGenerator`, `UIStyleGenerator`, `AssetPreviewRenderer`, `GameSystemsTestRunner`, `VisualValidationCapture`, `GameBuildPipeline` | Inicio en MainMenu, arte PBR, rig 22 huesos, presets, 24 tests, 38 capturas y build |

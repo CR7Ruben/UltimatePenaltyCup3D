@@ -5,8 +5,9 @@
 ## Inicio rápido
 
 1. Ejecuta `Builds/Windows/UltimatePenaltyCup3D.exe`.
-2. El juego abre en el **Menú Principal** con la vista previa 3D en vivo de **Rubén González (#10)** sobre el estadio.
+2. El juego abre en el **Menú Principal** con la vista previa 3D en vivo de **Rubén González (#7)** sobre el estadio.
 3. Pulsa **JUGAR** → elige una ronda desbloqueada → pulsa **JUGAR RONDA**.
+4. Si deseas cerrar la aplicación, aparecerá un modal de confirmación (**SALIR DEL JUEGO**) antes de salir.
 
 ---
 
@@ -21,7 +22,7 @@
 
 ## Tienda, Personalización, Logros y Opciones
 
-- **Tienda:** Compra 5 balones y 4 estadios con las monedas obtenidas por goles y victorias de ronda.
+- **Tienda:** Compra 5 balones y 4 estadios con las monedas obtenidas por goles y victorias de ronda, con notificaciones visuales inmediatas de confirmación o saldo insuficiente.
 - **Personalización:** Equipa tus balones y estadios desbloqueados desde pestañas independientes. En **Estadios** puedes fijar cualquier estadio comprado para todas las rondas o activar **Automático por Ronda** para disputar cada etapa en su sede oficial.
-- **Logros:** Consulta barras de progreso en vivo y recompensas en los 7 logros del torneo.
-- **Opciones:** Ajusta volumen general, música, efectos, sensibilidad de apuntado, resolución, modo ventana/pantalla completa y calidad gráfica (**Baja**, **Media**, **Alta**), o canjea códigos en compilaciones de desarrollo (`PENALTY2026`).
+- **Logros:** Consulta barras de progreso en vivo y recompensas en los 7 logros del torneo, con banners emergentes dorados al desbloquearse.
+- **Opciones:** Ajusta volumen general, música, efectos, **público del estadio** e **interfaz**, sensibilidad de apuntado, resolución, modo ventana/pantalla completa y calidad gráfica (**Baja**, **Media**, **Alta**), o canjea códigos en compilaciones de desarrollo (`PENALTY2026`).

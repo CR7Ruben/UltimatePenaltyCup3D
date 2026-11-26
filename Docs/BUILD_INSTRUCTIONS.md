@@ -26,10 +26,10 @@
 1. Abre el proyecto `D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D` en Unity 6.
 2. En el menú superior ejecuta:
    - **`Ultimate Penalty Cup → Execute Complete Project Setup`**  
-     (Genera texturas, sprites UI, materiales URP con GPU Instancing, mallas `SkinnedMesh` de 17 huesos, estadios con batching estático `StaticBatch_*`, prefabs, previsualizaciones 3D reales y reconstruye `MainMenu.unity` y `MatchScene.unity`).
+     (Genera texturas PBR, rostros 512×512 y dorsal `#7`, sprites UI, materiales URP con GPU Instancing, mallas `SkinnedMesh` de **22 huesos** + **5 BlendShapes**, estadios con público `CrowdInstanced`, audio 4 sectores y batching estático `StaticBatch_*`, prefabs, previsualizaciones 3D reales y reconstruye `MainMenu.unity` y `MatchScene.unity`).
 3. Ejecuta las pruebas del sistema:
-   - **`Ultimate Penalty Cup → Run All Automated System Tests`** (15 pruebas Edit Mode).
-   - O abre *Window → General → Test Runner → PlayMode* para ejecutar la simulación real de 100 disparos.
+   - **`Ultimate Penalty Cup → Run All Automated System Tests`** (`24` pruebas Edit Mode).
+   - O abre *Window → General → Test Runner → PlayMode* para ejecutar la suite Play Mode (`10` pruebas incluyendo simulación real de 100 disparos, público instanciado, audio 3D y alertas UI).
 4. Compila el ejecutable Windows x64:
    - **`Ultimate Penalty Cup → Build Windows Standalone (x64)`**
 5. El ejecutable final queda en:
@@ -49,13 +49,13 @@ $Proj  = "D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D"
 # 1. Reconstruir proyecto completo
 & $Unity -quit -batchmode -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.ProjectSetupBuilder.ExecuteCompleteSetup -logFile "$Proj\Logs\FullSetup.log"
 
-# 2. Ejecutar suite Edit Mode (15 pruebas)
+# 2. Ejecutar suite Edit Mode (24 pruebas)
 & $Unity -quit -batchmode -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.GameSystemsTestRunner.RunAllTests -logFile "$Proj\Logs\EditModeTests.log"
 
-# 3. Ejecutar suite Play Mode (flujo completo + 100 disparos físicos + FPS; NO usar -quit con -runTests)
+# 3. Ejecutar suite Play Mode (10 pruebas: flujo completo + 100 disparos + público + UI + FPS; NO usar -quit con -runTests)
 & $Unity -batchmode -projectPath $Proj -runTests -testPlatform PlayMode -testResults "$Proj\Logs\PlayModeResults.xml" -logFile "$Proj\Logs\PlayModeTests.log"
 
-# 4. Capturar capturas de validación visual
+# 4. Capturar capturas de validación visual (38 capturas 1920x1080)
 & $Unity -quit -batchmode -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.VisualValidationCapture.CaptureAllScreenshots -logFile "$Proj\Logs\Screenshots.log"
 
 # 5. Compilar ejecutable Windows x64

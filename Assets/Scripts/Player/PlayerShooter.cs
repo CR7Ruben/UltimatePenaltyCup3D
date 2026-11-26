@@ -307,7 +307,7 @@ namespace UltimatePenaltyCup.Player
 
             if (PlayerController.Instance != null)
             {
-                PlayerController.Instance.PlayKickAnimation(ballPos, () =>
+                PlayerController.Instance.PlayKickAnimation(ballPos, CurrentAimTarget, CurrentPower, () =>
                 {
                     PerformPhysicsKick(ballPos);
                 });
@@ -344,7 +344,7 @@ namespace UltimatePenaltyCup.Player
 
             if (!skipRunUp && PlayerController.Instance != null)
             {
-                PlayerController.Instance.PlayKickAnimation(ballPos, () => PerformPhysicsKick(ballPos));
+                PlayerController.Instance.PlayKickAnimation(ballPos, CurrentAimTarget, CurrentPower, () => PerformPhysicsKick(ballPos));
             }
             else
             {

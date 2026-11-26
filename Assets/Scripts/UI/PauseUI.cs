@@ -43,11 +43,12 @@ namespace UltimatePenaltyCup.UI
 
         private void Start()
         {
+            NotificationManager.EnsureInstance();
             if (btnResume != null) btnResume.onClick.AddListener(Resume);
-            if (btnRestart != null) btnRestart.onClick.AddListener(RestartMatch);
+            if (btnRestart != null) btnRestart.onClick.AddListener(RequestRestartConfirmation);
             if (btnOptions != null) btnOptions.onClick.AddListener(() => ShowOptionsSubmenu(true));
             if (btnBackFromOptions != null) btnBackFromOptions.onClick.AddListener(() => ShowOptionsSubmenu(false));
-            if (btnQuitToMenu != null) btnQuitToMenu.onClick.AddListener(QuitToMenu);
+            if (btnQuitToMenu != null) btnQuitToMenu.onClick.AddListener(RequestQuitToMenuConfirmation);
 
             SyncSliders();
 
@@ -141,6 +142,28 @@ namespace UltimatePenaltyCup.UI
 
             GameStateManager.Instance?.ChangeState(GameState.Match);
             AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
+        }
+
+        public void RequestRestartConfirmation()
+        {
+            NotificationManager.EnsureInstance().ShowConfirmModal(
+                "REINICIAR RONDA",
+                "¿Deseas reiniciar la ronda actual desde el primer penal?",
+                "REINICIAR",
+                "CANCELAR",
+                onConfirm: RestartMatch,
+                isDestructive: false);
+        }
+
+        public void RequestQuitToMenuConfirmation()
+        {
+            NotificationManager.EnsureInstance().ShowConfirmModal(
+                "VOLVER AL MENÚ",
+                "Se perderá el avance de esta ronda. ¿Deseas volver al Menú Principal?",
+                "SALIR AL MENÚ",
+                "CONTINUAR",
+                onConfirm: QuitToMenu,
+                isDestructive: true);
         }
 
         public void RestartMatch()

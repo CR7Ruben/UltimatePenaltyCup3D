@@ -6,6 +6,7 @@ using UnityEditor;
 using UltimatePenaltyCup.Player;
 using UltimatePenaltyCup.Goalkeeper;
 using UltimatePenaltyCup.Gameplay;
+using UltimatePenaltyCup.Audio;
 
 namespace UltimatePenaltyCup.Editor
 {
@@ -46,24 +47,30 @@ namespace UltimatePenaltyCup.Editor
 
             PlayerController pc = root.AddComponent<PlayerController>();
             SetField(pc, "characterVisuals", skeletonRoot);
+            SetField(pc, "skinnedMesh", smr);
             SetField(pc, "hips", boneMap["Hips"]);
             SetField(pc, "spine", boneMap["Spine"]);
+            SetField(pc, "upperSpine", boneMap["UpperSpine"]);
             SetField(pc, "chest", boneMap["Chest"]);
             SetField(pc, "neck", boneMap["Neck"]);
             SetField(pc, "torso", boneMap["Chest"]);
             SetField(pc, "head", boneMap["Head"]);
+            SetField(pc, "leftShoulder", boneMap["LeftShoulder"]);
             SetField(pc, "leftArm", boneMap["LeftUpperArm"]);
             SetField(pc, "leftForearm", boneMap["LeftForearm"]);
             SetField(pc, "leftHand", boneMap["LeftHand"]);
+            SetField(pc, "rightShoulder", boneMap["RightShoulder"]);
             SetField(pc, "rightArm", boneMap["RightUpperArm"]);
             SetField(pc, "rightForearm", boneMap["RightForearm"]);
             SetField(pc, "rightHand", boneMap["RightHand"]);
             SetField(pc, "leftLeg", boneMap["LeftThigh"]);
             SetField(pc, "leftShin", boneMap["LeftShin"]);
             SetField(pc, "leftFoot", boneMap["LeftFoot"]);
+            SetField(pc, "leftToe", boneMap["LeftToe"]);
             SetField(pc, "rightLeg", boneMap["RightThigh"]);
             SetField(pc, "rightShin", boneMap["RightShin"]);
             SetField(pc, "rightFoot", boneMap["RightFoot"]);
+            SetField(pc, "rightToe", boneMap["RightToe"]);
 
             // Circular Reticle (transparent UI ring sprite)
             PlayerShooter ps = root.AddComponent<PlayerShooter>();
@@ -187,24 +194,30 @@ namespace UltimatePenaltyCup.Editor
 
             GoalkeeperAI gkAI = root.AddComponent<GoalkeeperAI>();
             SetField(gkAI, "bodyRoot", skeletonRoot);
+            SetField(gkAI, "skinnedMesh", smr);
             SetField(gkAI, "hips", boneMap["Hips"]);
             SetField(gkAI, "spine", boneMap["Spine"]);
+            SetField(gkAI, "upperSpine", boneMap["UpperSpine"]);
             SetField(gkAI, "chest", boneMap["Chest"]);
             SetField(gkAI, "neck", boneMap["Neck"]);
             SetField(gkAI, "torso", boneMap["Chest"]);
             SetField(gkAI, "head", boneMap["Head"]);
+            SetField(gkAI, "leftShoulder", boneMap["LeftShoulder"]);
             SetField(gkAI, "leftArm", boneMap["LeftUpperArm"]);
             SetField(gkAI, "leftForearm", boneMap["LeftForearm"]);
             SetField(gkAI, "leftHand", boneMap["LeftHand"]);
+            SetField(gkAI, "rightShoulder", boneMap["RightShoulder"]);
             SetField(gkAI, "rightArm", boneMap["RightUpperArm"]);
             SetField(gkAI, "rightForearm", boneMap["RightForearm"]);
             SetField(gkAI, "rightHand", boneMap["RightHand"]);
             SetField(gkAI, "leftLeg", boneMap["LeftThigh"]);
             SetField(gkAI, "leftShin", boneMap["LeftShin"]);
             SetField(gkAI, "leftFoot", boneMap["LeftFoot"]);
+            SetField(gkAI, "leftToe", boneMap["LeftToe"]);
             SetField(gkAI, "rightLeg", boneMap["RightThigh"]);
             SetField(gkAI, "rightShin", boneMap["RightShin"]);
             SetField(gkAI, "rightFoot", boneMap["RightFoot"]);
+            SetField(gkAI, "rightToe", boneMap["RightToe"]);
             SetField(gkAI, "leftGloveAnchor", boneMap["LeftHand"]);
             SetField(gkAI, "rightGloveAnchor", boneMap["RightHand"]);
 
@@ -321,6 +334,8 @@ namespace UltimatePenaltyCup.Editor
 
             GameObject root = new GameObject("StadiumEnvironment");
             StadiumController sc = root.AddComponent<StadiumController>();
+            root.AddComponent<CrowdManager>();
+            root.AddComponent<StadiumAmbienceController>();
 
             // ========== REGULATION PITCH (75m x 105m, top surface cleanly at y = 0.0) ==========
             GameObject pitch = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -698,7 +713,8 @@ namespace UltimatePenaltyCup.Editor
             cf.transform.SetParent(parent, false);
             cf.transform.localPosition = pos;
             CreateCylinderPart("FlagPole", cf.transform, new Vector3(0f, 0.75f, 0f), Quaternion.identity, new Vector3(0.05f, 0.75f, 0.05f), matPole, false);
-            CreateBox("FlagCloth", cf.transform, new Vector3(0.18f, 1.38f, 0f), new Vector3(0.32f, 0.22f, 0.03f), matFlag, false);
+            GameObject cloth = CreateBox("FlagCloth", cf.transform, new Vector3(0.18f, 1.38f, 0f), new Vector3(0.32f, 0.22f, 0.03f), matFlag, false);
+            cloth.AddComponent<StadiumFlagWave>();
         }
 
         private static Light CreateFloodlightTower(string name, Transform parent, Vector3 basePos, Vector3 lightRot, Material matMetal)

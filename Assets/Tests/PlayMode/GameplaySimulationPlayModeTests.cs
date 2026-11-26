@@ -19,6 +19,7 @@ using UltimatePenaltyCup.Player;
 using UltimatePenaltyCup.SaveSystem;
 using UltimatePenaltyCup.Shop;
 using UltimatePenaltyCup.UI;
+using UltimatePenaltyCup.Audio;
 
 namespace UltimatePenaltyCup.Tests
 {
@@ -34,6 +35,8 @@ namespace UltimatePenaltyCup.Tests
                 initialVSyncChecked = true;
             }
             Time.timeScale = 1f;
+            MatchCameraController.SkipIntroSweepForTests = true;
+            NotificationManager.Instance?.ClearAllNotifications();
         }
 
         private IEnumerator BootToCleanMainMenu()
@@ -493,6 +496,274 @@ namespace UltimatePenaltyCup.Tests
 
             CustomizationManager.Instance.SetUseRoundStadiumAutomatic();
             Assert.IsFalse(SaveManager.Instance.CurrentData.useCustomStadiumOverride);
+        }
+
+        [UnityTest]
+        public IEnumerator Test08_CrowdSpawningQualityScalingAndDynamicReactions()
+        {
+            yield return BootToCleanMainMenu();
+            for (int r = 1; r <= 5; r++) SaveManager.Instance.UnlockRound(r);
+
+            GameManager.Instance.SelectRoundAndStartMatch(3);
+            yield return WaitForScene("MatchScene");
+
+            CrowdManager crowd = CrowdManager.Instance;
+            StadiumController sc = StadiumController.Instance;
+            Assert.IsNotNull(crowd, "CrowdManager.Instance must exist in MatchScene.");
+            Assert.IsNotNull(sc, "StadiumController.Instance must exist in MatchScene.");
+
+            int prevQuality = QualitySettings.GetQualityLevel();
+            try
+            {
+                QualitySettings.SetQualityLevel(2, true);
+                crowd.SetQualityDensityRefresh();
+
+                // Verify monotonically increasing crowd density across venues (Cantera < Night < Professional < WorldCup)
+                int prevCount = 0;
+                StadiumType[] venues = { StadiumType.Cantera, StadiumType.Night, StadiumType.Professional, StadiumType.WorldCup };
+                foreach (var v in venues)
+                {
+                    sc.ApplyVenue(v);
+                    crowd.SyncWithStadium();
+                    yield return null;
+                    yield return null;
+                    int cnt = crowd.ActiveSpectatorCount;
+                    Assert.Greater(cnt, prevCount, $"Expected crowd density in {v} ({cnt}) > previous venue ({prevCount}).");
+                    prevCount = cnt;
+
+                    // Capture 1920x1080 real GPU-instanced crowd stadium screenshot!
+                    crowd.SubmitDrawCalls(Camera.main);
+                    CaptureCameraFrame(Camera.main, $"1{(int)v + 3}_Stadium_{v}.png");
+                }
+
+                // Verify Baja < Media < Alta density scaling on WorldCup
+                sc.ApplyVenue(StadiumType.WorldCup);
+                QualitySettings.SetQualityLevel(0, true); crowd.SetQualityDensityRefresh(); yield return null;
+                int lowCnt = crowd.ActiveSpectatorCount;
+                QualitySettings.SetQualityLevel(1, true); crowd.SetQualityDensityRefresh(); yield return null;
+                int medCnt = crowd.ActiveSpectatorCount;
+                QualitySettings.SetQualityLevel(2, true); crowd.SetQualityDensityRefresh(); yield return null;
+                int highCnt = crowd.ActiveSpectatorCount;
+                Assert.Greater(lowCnt, 100);
+                Assert.Less(lowCnt, medCnt, "Low quality crowd density must be less than Medium.");
+                Assert.Less(medCnt, highCnt, "Medium quality crowd density must be less than High.");
+
+                // Verify dynamic reaction triggers without duplicate calls + capture real GIF sequence frames
+                PenaltyManager pm = PenaltyManager.Instance;
+                pm.PostAttemptDelay = 0.08f;
+                int baseTriggers = crowd.ReactionTriggerCount;
+                yield return CaptureVideoShotSequence(new Vector3(2.95f, 1.95f, 0f), 0.84f, "PlayerKick_And_Crowd", 20);
+                Assert.Greater(crowd.ReactionTriggerCount, baseTriggers, "Real shot must trigger crowd reaction.");
+
+                yield return CaptureVideoShotSequence(new Vector3(0.0f, 0.90f, 0f), 0.55f, "KeeperDive_And_Save", 20);
+
+                // Also capture dedicated WorldCup Crowd celebration reaction frames
+                sc.ApplyVenue(StadiumType.WorldCup);
+                crowd.SyncWithStadium();
+                crowd.TriggerReaction(CrowdReactionMode.GoalCelebrate, 1.0f, 3.0f);
+                string crowdDir = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "VideoFrames", "Stadium_Crowd_Reaction");
+                Directory.CreateDirectory(crowdDir);
+                for (int f = 0; f < 16; f++)
+                {
+                    crowd.SubmitDrawCalls(Camera.main);
+                    CaptureCameraFrameCustomSize(Camera.main, Path.Combine(crowdDir, $"frame_{f:000}.png"), 960, 540);
+                    yield return null;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                QualitySettings.SetQualityLevel(prevQuality, true);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Test09_LocalizedCrowdAudioAndVolumePersistence()
+        {
+            yield return BootToCleanMainMenu();
+            GameManager.Instance.SelectRoundAndStartMatch(3);
+            yield return WaitForScene("MatchScene");
+
+            StadiumAmbienceController amb = StadiumAmbienceController.Instance;
+            AudioManager am = AudioManager.Instance;
+            Assert.IsNotNull(amb, "StadiumAmbienceController.Instance must exist.");
+            Assert.IsNotNull(am, "AudioManager.Instance must exist.");
+            Assert.GreaterOrEqual(amb.EmitterCount, 4, "Expected at least 4 localized 3D stand audio emitters.");
+
+            AudioSource[] sources = amb.GetComponentsInChildren<AudioSource>(true);
+            Assert.GreaterOrEqual(sources.Length, 4, "Stand audio emitters missing.");
+            foreach (var src in sources)
+            {
+                Assert.GreaterOrEqual(src.spatialBlend, 0.7f, $"Stand emitter {src.name} must be localized 3D (spatialBlend >= 0.7).");
+                Assert.IsNotNull(src.clip, $"Stand emitter {src.name} must have ambient crowd clip.");
+            }
+
+            // Verify 5-channel volume controls & JSON roundtrip persistence
+            am.SetCrowdVolume(0.42f);
+            am.SetUiVolume(0.67f);
+            yield return null;
+            Assert.AreEqual(0.42f, SaveManager.Instance.CurrentData.crowdVolume, 0.01f);
+            Assert.AreEqual(0.67f, SaveManager.Instance.CurrentData.uiVolume, 0.01f);
+
+            string json = JsonUtility.ToJson(SaveManager.Instance.CurrentData);
+            SaveData reloaded = JsonUtility.FromJson<SaveData>(json);
+            Assert.AreEqual(0.42f, reloaded.crowdVolume, 0.01f);
+            Assert.AreEqual(0.67f, reloaded.uiVolume, 0.01f);
+
+            int beforeTrig = amb.ReactionAudioTriggerCount;
+            amb.PlayLocalizedReaction(SfxType.CrowdGoalRoar, 0.55f);
+            Assert.AreEqual(beforeTrig + 1, amb.ReactionAudioTriggerCount);
+
+            am.SetCrowdVolume(0.85f);
+            am.SetUiVolume(0.90f);
+        }
+
+        [UnityTest]
+        public IEnumerator Test10_NotificationsModalsAndPauseCompatibility()
+        {
+            yield return BootToCleanMainMenu();
+            NotificationManager nm = NotificationManager.EnsureInstance();
+            Assert.IsNotNull(nm);
+
+            // Capture main-menu redesigned UI alerts, modals, and achievement cards
+            Camera cam = Camera.main;
+            Canvas overlayCanvas = nm.OverlayCanvas;
+
+            // 1. Purchase Toast screenshot + animated slide-in sequence frames for UI GIF
+            string uiDir = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "VideoFrames", "UI_Alerts_And_Modals");
+            Directory.CreateDirectory(uiDir);
+            nm.ShowToast("COMPRA EXITOSA", "¡Has desbloqueado Balón Azul!", NotificationKind.Success, 1.2f);
+            for (int f = 0; f < 10; f++)
+            {
+                CaptureCameraWithCanvasCustomSize(cam, overlayCanvas, Path.Combine(uiDir, $"frame_{f:000}.png"), 960, 540);
+                yield return null;
+            }
+            Assert.IsTrue(nm.IsToastVisible, "Toast should be visible after slide-in.");
+            CaptureCameraWithCanvas(cam, overlayCanvas, "17_Alert_PurchaseToast.png");
+
+            // Queue test: ensure second toast queues cleanly and clears
+            nm.ShowToast("COMPRA NO DISPONIBLE", "Monedas insuficientes (faltan 1,500).", NotificationKind.Warning, 1.5f);
+            yield return new WaitForSecondsRealtime(1.35f);
+            Assert.IsTrue(nm.IsToastVisible, "Queued second toast must appear cleanly after first.");
+            CaptureCameraWithCanvas(cam, overlayCanvas, "18_Alert_InsufficientCoins.png");
+
+            // 2. Exit Confirmation Modal + Cancel test
+            bool confirmed = false;
+            nm.ShowConfirmModal("SALIR DEL JUEGO", "¿Deseas cerrar UltimatePenaltyCup3D?", "SALIR", "CANCELAR", () => confirmed = true, isDestructive: true);
+            for (int f = 10; f < 18; f++)
+            {
+                CaptureCameraWithCanvasCustomSize(cam, overlayCanvas, Path.Combine(uiDir, $"frame_{f:000}.png"), 960, 540);
+                yield return null;
+            }
+            Assert.IsTrue(nm.IsModalOpen, "Modal must be open.");
+            CaptureCameraWithCanvas(cam, overlayCanvas, "19_Modal_ExitConfirm.png");
+            nm.CloseModal(false);
+            Assert.IsFalse(nm.IsModalOpen || confirmed);
+
+            // 3. Achievement Reward Card during Pause (Time.timeScale == 0!)
+            GameManager.Instance.SelectRoundAndStartMatch(1);
+            yield return WaitForScene("MatchScene");
+            PauseUI.Instance.Pause();
+            Assert.AreEqual(0f, Time.timeScale, 0.001f);
+
+            nm.ShowAchievementCard("Francotirador", "Marca 10 goles en total a lo largo de tu carrera.", 300, 250);
+            yield return new WaitForSecondsRealtime(0.30f);
+            Assert.IsTrue(nm.IsAchievementVisible, "Achievement card must animate visibly even while Paused (Time.timeScale=0).");
+            CaptureCameraWithCanvas(Camera.main, nm.OverlayCanvas, "20_Alert_AchievementUnlocked.png");
+            PauseUI.Instance.Resume();
+
+            // 4. Broadcast Goal / Save alert screenshots in MatchHUD
+            Canvas hudCanvas = MatchHUD.Instance.GetComponent<Canvas>();
+            MatchHUD.Instance.ShowMessageBanner("¡GOLAZO AL ÁNGULO!", "+150 Pts  |  +120 Monedas", new Color(0.10f, 0.62f, 0.34f, 0.96f), 2.0f);
+            yield return new WaitForSecondsRealtime(0.26f);
+            CaptureCameraWithCanvas(Camera.main, hudCanvas, "21_Alert_GoalBroadcast.png");
+
+            MatchHUD.Instance.ShowMessageBanner("¡ATAJADA!", "Malágon desvió el disparo", new Color(0.84f, 0.44f, 0.08f, 0.96f), 2.0f);
+            yield return new WaitForSecondsRealtime(0.26f);
+            CaptureCameraWithCanvas(Camera.main, hudCanvas, "22_Alert_SaveBroadcast.png");
+
+            nm.ClearAllNotifications();
+        }
+
+        private IEnumerator CaptureVideoShotSequence(Vector3 target, float power, string folderName, int maxFrames)
+        {
+            string dir = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "VideoFrames", folderName);
+            Directory.CreateDirectory(dir);
+            PenaltyManager pm = PenaltyManager.Instance;
+            PlayerShooter shooter = PlayerShooter.Instance;
+
+            // Warm up camera at kick start
+            float waitReady = 0f;
+            while ((!pm.CanAcceptShotInput || !shooter.CanShoot) && waitReady < 4f)
+            {
+                waitReady += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            shooter.ExecuteAutomatedShot(target, power, skipRunUp: false);
+            for (int f = 0; f < maxFrames; f++)
+            {
+                CrowdManager.Instance?.SubmitDrawCalls(Camera.main);
+                CaptureCameraFrameCustomSize(Camera.main, Path.Combine(dir, $"frame_{f:000}.png"), 960, 540);
+                for (int skip = 0; skip < 2; skip++) yield return null;
+            }
+
+            float waitEnd = 0f;
+            while (pm.IsEvaluatingShot && waitEnd < 3.5f)
+            {
+                waitEnd += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        private static void CaptureCameraWithCanvas(Camera cam, Canvas canvas, string fileName)
+        {
+            if (cam == null || canvas == null) { CaptureCameraFrame(cam, fileName); return; }
+            RenderMode prevMode = canvas.renderMode;
+            Camera prevCam = canvas.worldCamera;
+            float prevDist = canvas.planeDistance;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = 1.0f;
+            Canvas.ForceUpdateCanvases();
+            CaptureCameraFrame(cam, fileName);
+            canvas.renderMode = prevMode;
+            canvas.worldCamera = prevCam;
+            canvas.planeDistance = prevDist;
+        }
+
+        private static void CaptureCameraWithCanvasCustomSize(Camera cam, Canvas canvas, string fullPath, int w, int h)
+        {
+            if (cam == null || canvas == null) { CaptureCameraFrameCustomSize(cam, fullPath, w, h); return; }
+            RenderMode prevMode = canvas.renderMode;
+            Camera prevCam = canvas.worldCamera;
+            float prevDist = canvas.planeDistance;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = 1.0f;
+            Canvas.ForceUpdateCanvases();
+            CaptureCameraFrameCustomSize(cam, fullPath, w, h);
+            canvas.renderMode = prevMode;
+            canvas.worldCamera = prevCam;
+            canvas.planeDistance = prevDist;
+        }
+
+        private static void CaptureCameraFrameCustomSize(Camera cam, string fullPath, int w, int h)
+        {
+            if (cam == null) return;
+            RenderTexture rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
+            var prevTarget = cam.targetTexture;
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            tex.Apply();
+            cam.targetTexture = prevTarget;
+            RenderTexture.active = null;
+            UnityEngine.Object.Destroy(rt);
+            File.WriteAllBytes(fullPath, tex.EncodeToPNG());
+            UnityEngine.Object.Destroy(tex);
         }
 
         private static Transform FindChildRecursive(Transform root, string name)

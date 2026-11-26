@@ -50,6 +50,7 @@ namespace UltimatePenaltyCup.UI
                 btnAutoRoundStadium.onClick.AddListener(() =>
                 {
                     CustomizationManager.Instance?.SetUseRoundStadiumAutomatic();
+                    NotificationManager.EnsureInstance().ShowToast("ESTADIO AUTOMÁTICO", "Cada ronda usará su sede oficial.", NotificationKind.Info);
                     RefreshAll();
                 });
             }
@@ -81,8 +82,21 @@ namespace UltimatePenaltyCup.UI
             }
         }
 
-        private void HandleItemChanged(BallType b) => RefreshAll();
-        private void HandleStadiumChanged(StadiumType s) => RefreshAll();
+        private void HandleItemChanged(BallType b)
+        {
+            NotificationManager.EnsureInstance().ShowToast("BALÓN EQUIPADO", $"Se equipó el balón {b}.", NotificationKind.Success);
+            RefreshAll();
+        }
+
+        private void HandleStadiumChanged(StadiumType s)
+        {
+            var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+            if (data != null && data.useCustomStadiumOverride)
+            {
+                NotificationManager.EnsureInstance().ShowToast("ESTADIO PERSONALIZADO", $"Se jugarán todas las rondas en {s}.", NotificationKind.Success);
+            }
+            RefreshAll();
+        }
 
         public void SwitchTab(bool showBalls)
         {
@@ -117,9 +131,12 @@ namespace UltimatePenaltyCup.UI
 
         private void UpdatePreviewPanel()
         {
-            var saveMgr = SaveManager.Instance ?? FindAnyObjectByType<SaveManager>();
-            var shopMgr = ShopManager.Instance ?? FindAnyObjectByType<ShopManager>();
-            var custMgr = CustomizationManager.Instance ?? FindAnyObjectByType<CustomizationManager>();
+            var saveMgr = SaveManager.Instance;
+            if (saveMgr == null) saveMgr = FindAnyObjectByType<SaveManager>();
+            var shopMgr = ShopManager.Instance;
+            if (shopMgr == null) shopMgr = FindAnyObjectByType<ShopManager>();
+            var custMgr = CustomizationManager.Instance;
+            if (custMgr == null) custMgr = FindAnyObjectByType<CustomizationManager>();
 
             var data = saveMgr != null ? saveMgr.CurrentData : null;
             bool autoMode = data == null || !data.useCustomStadiumOverride;

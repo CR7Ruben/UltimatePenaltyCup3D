@@ -219,11 +219,11 @@ namespace UltimatePenaltyCup.Editor
 
         public static void ConfigureQualityPresets()
         {
-            var highAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.RenderPipelineAsset>("Assets/Settings/PC_RPAsset.asset");
+            var highAsset = EnsureClonedUrpAsset("Assets/Settings/PC_RPAsset.asset", renderScale: 1.0f, msaa: 1, shadowDist: 42f, cascades: 2, shadowRes: 1024);
             if (highAsset == null) return;
 
-            var lowAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Low.asset", renderScale: 0.85f, msaa: 1, shadowDist: 26f, cascades: 1, shadowRes: 512);
-            var medAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Medium.asset", renderScale: 1.0f, msaa: 2, shadowDist: 36f, cascades: 2, shadowRes: 1024);
+            var lowAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Low.asset", renderScale: 0.80f, msaa: 1, shadowDist: 26f, cascades: 1, shadowRes: 512);
+            var medAsset = EnsureClonedUrpAsset("Assets/Settings/URP_Medium.asset", renderScale: 0.92f, msaa: 1, shadowDist: 36f, cascades: 1, shadowRes: 1024);
 
             // Bind quality level render pipeline assets matching ProjectSettings/QualitySettings.asset (0=Baja, 1=Media, 2=Alta)
             int count = QualitySettings.names != null ? QualitySettings.names.Length : 0;
@@ -261,6 +261,10 @@ namespace UltimatePenaltyCup.Editor
                 if (spCascades != null) spCascades.intValue = cascades;
                 var spShadowRes = so.FindProperty("m_MainLightShadowmapResolution");
                 if (spShadowRes != null) spShadowRes.intValue = shadowRes;
+                var spDepthTex = so.FindProperty("m_RequireDepthTexture");
+                if (spDepthTex != null) spDepthTex.intValue = 0;
+                var spSoftShadow = so.FindProperty("m_SoftShadowQuality");
+                if (spSoftShadow != null) spSoftShadow.intValue = 1;
                 so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(asset);
             }
@@ -687,6 +691,7 @@ namespace UltimatePenaltyCup.Editor
             ShopManager shm = gmObj.AddComponent<ShopManager>();
             gmObj.AddComponent<CustomizationManager>();
             AchievementManager acm = gmObj.AddComponent<AchievementManager>();
+            gmObj.AddComponent<UI.NotificationManager>();
 
             var balls = new List<BallItemSO>
             {
@@ -973,10 +978,10 @@ namespace UltimatePenaltyCup.Editor
             Button btnBackSettings = CreateHeaderBar(pnlSettings.transform, "OPCIONES Y CONFIGURACIÓN", "Ajustes de audio, controles y gráficos", out _);
             SettingsUI settingsUI = pnlSettings.AddComponent<SettingsUI>();
 
-            GameObject settingsCard = CreateUIImage("SettingsCard", pnlSettings.transform, new Vector2(0f, -40f), new Vector2(1180f, 760f), ColCardBg, sCard);
+            GameObject settingsCard = CreateUIImage("SettingsCard", pnlSettings.transform, new Vector2(0f, -45f), new Vector2(1180f, 830f), ColCardBg, sCard);
             var vSet = settingsCard.AddComponent<VerticalLayoutGroup>();
-            vSet.spacing = 18f;
-            vSet.padding = new RectOffset(48, 48, 34, 34);
+            vSet.spacing = 11f;
+            vSet.padding = new RectOffset(48, 48, 24, 24);
             vSet.childAlignment = TextAnchor.UpperCenter;
             vSet.childControlWidth = true;
             vSet.childControlHeight = false;
@@ -984,6 +989,8 @@ namespace UltimatePenaltyCup.Editor
             Slider sMaster = CreateSettingsSliderRow(settingsCard.transform, "Volumen General", 1.0f, out TMP_Text txtMasterVal);
             Slider sMus    = CreateSettingsSliderRow(settingsCard.transform, "Volumen Música",  0.8f, out TMP_Text txtMusVal);
             Slider sSfx    = CreateSettingsSliderRow(settingsCard.transform, "Efectos de Sonido", 0.9f, out TMP_Text txtSfxVal);
+            Slider sCrowd  = CreateSettingsSliderRow(settingsCard.transform, "Sonido Público",  0.85f, out TMP_Text txtCrowdVal);
+            Slider sUiVol  = CreateSettingsSliderRow(settingsCard.transform, "Sonido Interfaz", 0.90f, out TMP_Text txtUiVal);
             Slider sSens   = CreateSettingsSliderRow(settingsCard.transform, "Sensibilidad Apuntado", 1.0f, out TMP_Text txtSensVal, 0.5f, 2.0f);
 
             CreateSettingsStepRow(settingsCard.transform, "Resolución", "1920 x 1080", out Button btnResP, out Button btnResN, out TMP_Text txtResVal);
@@ -991,7 +998,7 @@ namespace UltimatePenaltyCup.Editor
             CreateSettingsStepRow(settingsCard.transform, "Calidad Gráfica", "ALTA", out Button btnQualP, out Button btnQualN, out TMP_Text txtQualVal);
 
             // Restore defaults + Secret Dev Code row
-            GameObject bottomSetRow = CreateContainer("SettingsBottomRow", settingsCard.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(1060f, 60f));
+            GameObject bottomSetRow = CreateContainer("SettingsBottomRow", settingsCard.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(1060f, 58f));
             var hBotSet = bottomSetRow.AddComponent<HorizontalLayoutGroup>();
             hBotSet.spacing = 18f;
             hBotSet.childControlWidth = false;
@@ -1001,16 +1008,20 @@ namespace UltimatePenaltyCup.Editor
             Button btnResetDef = CreateStyledButton("BtnResetDefaults", bottomSetRow.transform, new Vector2(310f, 52f), "RESTAURAR PREDETERMINADOS", ColNavyMid, ColWhite, 17);
             TMP_InputField inpCode = CreateUIInputField("InputSecretCode", bottomSetRow.transform, Vector2.zero, new Vector2(320f, 52f), "Código promocional...");
             Button btnRedeemCode = CreateStyledButton("BtnRedeemCode", bottomSetRow.transform, new Vector2(160f, 52f), "CANJEAR", ColGold, ColNavyDeep, 19);
-            TMP_Text txtCodeMsg = CreateUIText("TxtCodeMsg", settingsCard.transform, Vector2.zero, new Vector2(1040f, 32f), "", 19, ColGreen, FontStyles.Bold);
+            TMP_Text txtCodeMsg = CreateUIText("TxtCodeMsg", settingsCard.transform, Vector2.zero, new Vector2(1040f, 30f), "", 18, ColGreen, FontStyles.Bold);
             txtCodeMsg.gameObject.SetActive(false);
 
             SetSerializedField(settingsUI, "sliderMaster", sMaster);
             SetSerializedField(settingsUI, "sliderMusic", sMus);
             SetSerializedField(settingsUI, "sliderSfx", sSfx);
+            SetSerializedField(settingsUI, "sliderCrowd", sCrowd);
+            SetSerializedField(settingsUI, "sliderUi", sUiVol);
             SetSerializedField(settingsUI, "sliderSensitivity", sSens);
             SetSerializedField(settingsUI, "txtMasterVal", txtMasterVal);
             SetSerializedField(settingsUI, "txtMusicVal", txtMusVal);
             SetSerializedField(settingsUI, "txtSfxVal", txtSfxVal);
+            SetSerializedField(settingsUI, "txtCrowdVal", txtCrowdVal);
+            SetSerializedField(settingsUI, "txtUiVal", txtUiVal);
             SetSerializedField(settingsUI, "txtSensitivityVal", txtSensVal);
             SetSerializedField(settingsUI, "btnResPrev", btnResP);
             SetSerializedField(settingsUI, "btnResNext", btnResN);
@@ -1026,6 +1037,13 @@ namespace UltimatePenaltyCup.Editor
             SetSerializedField(settingsUI, "inputSecretCode", inpCode);
             SetSerializedField(settingsUI, "btnRedeemCode", btnRedeemCode);
             SetSerializedField(settingsUI, "txtCodeMessage", txtCodeMsg);
+
+            // Smooth animated transitions for menu sub-panels (never delays SetActive state)
+            pnlRoundSelect.AddComponent<UI.UIPanelTransition>();
+            pnlShop.AddComponent<UI.UIPanelTransition>();
+            pnlCustom.AddComponent<UI.UIPanelTransition>();
+            pnlAch.AddComponent<UI.UIPanelTransition>();
+            pnlSettings.AddComponent<UI.UIPanelTransition>();
 
             // Wire MainMenuUI
             SetSerializedField(menuUI, "panelMainMenu", pnlMain);
@@ -1217,10 +1235,12 @@ namespace UltimatePenaltyCup.Editor
             clRt.anchoredPosition = new Vector2(28f, 20f);
             CreateUIText("TxtLegend", ctrlLegend.transform, Vector2.zero, new Vector2(460f, 36f), "WASD: Mover  |  Mouse: Apuntar  |  Clic: Cargar y Disparar  |  ESC: Pausa", 15, ColWhite, FontStyles.Normal);
 
-            // --- Result Banner ---
-            GameObject bannerObj = CreateUIImage("Banner_Result", canvasT, new Vector2(0f, 210f), new Vector2(780f, 128f), ColGreen, sPanel);
-            TMP_Text txtResultTitle = CreateUIText("TxtResultTitle", bannerObj.transform, new Vector2(0f, 22f), new Vector2(740f, 56f), "¡GOOOOL!", 44, ColWhite, FontStyles.Bold);
-            TMP_Text txtResultSub   = CreateUIText("TxtResultSub",   bannerObj.transform, new Vector2(0f, -28f), new Vector2(740f, 36f), "+100 Pts  |  +100 Monedas", 22, ColGold, FontStyles.Bold);
+            // --- Broadcast Result Banner (Positioned strictly above goal frame, sleek gold edge) ---
+            GameObject bannerObj = CreateUIImage("Banner_Result", canvasT, new Vector2(0f, 295f), new Vector2(760f, 114f), ColGreen, sPanel);
+            GameObject bannerGoldRim = CreateUIImage("BannerGoldEdge", bannerObj.transform, new Vector2(0f, 52f), new Vector2(740f, 6f), ColGold, null);
+            bannerGoldRim.GetComponent<Image>().raycastTarget = false;
+            TMP_Text txtResultTitle = CreateUIText("TxtResultTitle", bannerObj.transform, new Vector2(0f, 18f), new Vector2(720f, 52f), "¡GOOOOL!", 42, ColWhite, FontStyles.Bold);
+            TMP_Text txtResultSub   = CreateUIText("TxtResultSub",   bannerObj.transform, new Vector2(0f, -26f), new Vector2(720f, 32f), "+100 Pts  |  +100 Monedas", 21, ColGold, FontStyles.Bold);
             bannerObj.SetActive(false);
 
             // --- Pause Panel (ALWAYS ACTIVE PauseController, toggling panelPause inside!) ---
@@ -1228,6 +1248,7 @@ namespace UltimatePenaltyCup.Editor
             PauseUI pauseUI = pauseControllerObj.AddComponent<PauseUI>();
 
             GameObject pnlPause = CreateFullScreenPanel("Panel_Pause", pauseControllerObj.transform, new Color(0.02f, 0.05f, 0.10f, 0.85f), null);
+            pnlPause.AddComponent<UI.UIPanelTransition>();
             GameObject pauseModal = CreateUIImage("PauseModal", pnlPause.transform, Vector2.zero, new Vector2(640f, 560f), ColNavyMid, sCard);
             CreateUIText("TitlePause", pauseModal.transform, new Vector2(0f, 215f), new Vector2(560f, 64f), "PAUSA", 44, ColGold, FontStyles.Bold);
 
@@ -1279,6 +1300,7 @@ namespace UltimatePenaltyCup.Editor
             RoundEndUI endUI = roundEndMgr.AddComponent<RoundEndUI>();
 
             GameObject pnlEnd = CreateFullScreenPanel("Panel_RoundEnd", roundEndMgr.transform, new Color(0.02f, 0.05f, 0.10f, 0.90f), null);
+            pnlEnd.AddComponent<UI.UIPanelTransition>();
 
             // Normal Result Card
             GameObject pnlNormalResult = CreateUIImage("NormalResultGroup", pnlEnd.transform, Vector2.zero, new Vector2(780f, 740f), ColNavyMid, sCard);

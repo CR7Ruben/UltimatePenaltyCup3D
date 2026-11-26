@@ -7,6 +7,7 @@ namespace UltimatePenaltyCup.Gameplay
     public class MatchCameraController : MonoBehaviour
     {
         public static MatchCameraController Instance { get; private set; }
+        public static bool SkipIntroSweepForTests { get; set; } = false;
 
         [Header("Broadcast Penalty Framing")]
         [SerializeField] private Vector3 aimingPosition = new Vector3(0.58f, 1.92f, -17.35f);
@@ -20,6 +21,8 @@ namespace UltimatePenaltyCup.Gameplay
         private Camera cam;
         private bool isTrackingBall = false;
         private bool isReturningToKicker = false;
+        private bool isPlayingIntro = false;
+        private float introTimer = 0f;
         private Vector3 positionVelocity;
         private Transform ballTransform;
 
@@ -32,16 +35,26 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void Start()
         {
-            ResetCameraToKicker(instant: true);
-
+            if (BallController.Instance != null)
+            {
+                ballTransform = BallController.Instance.transform;
+            }
             if (PenaltyManager.Instance != null)
             {
                 PenaltyManager.Instance.OnAttemptStarted += HandleAttemptStarted;
             }
 
-            if (BallController.Instance != null)
+            if (!SkipIntroSweepForTests && !Application.isBatchMode)
             {
-                ballTransform = BallController.Instance.transform;
+                isPlayingIntro = true;
+                introTimer = 0f;
+                transform.position = new Vector3(4.5f, 5.2f, -20.5f);
+                transform.LookAt(new Vector3(0f, 1.5f, 2f));
+                if (cam != null) cam.fieldOfView = 56f;
+            }
+            else
+            {
+                ResetCameraToKicker(instant: true);
             }
         }
 
@@ -72,6 +85,28 @@ namespace UltimatePenaltyCup.Gameplay
         {
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
+
+            if (isPlayingIntro)
+            {
+                introTimer += dt;
+                bool skipPressed = (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame)
+                                || (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.spaceKey.wasPressedThisFrame);
+                if (skipPressed || introTimer >= 1.15f)
+                {
+                    isPlayingIntro = false;
+                    ResetCameraToKicker(instant: false);
+                }
+                else
+                {
+                    float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(introTimer / 1.15f));
+                    Vector3 startIntroPos = new Vector3(4.5f, 5.2f, -20.5f);
+                    transform.position = Vector3.Lerp(startIntroPos, aimingPosition, u);
+                    Vector3 lookP = Vector3.Lerp(new Vector3(0f, 1.5f, 2f), aimingLookTarget, u);
+                    transform.rotation = Quaternion.LookRotation(lookP - transform.position);
+                    if (cam != null) cam.fieldOfView = Mathf.Lerp(56f, aimFov, u);
+                    return;
+                }
+            }
 
             if (isTrackingBall && ballTransform != null)
             {
@@ -133,6 +168,7 @@ namespace UltimatePenaltyCup.Gameplay
 
         public void ResetCameraToKicker(bool instant = false)
         {
+            isPlayingIntro = false;
             isTrackingBall = false;
             positionVelocity = Vector3.zero;
 

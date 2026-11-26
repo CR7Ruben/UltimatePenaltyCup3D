@@ -54,6 +54,7 @@ namespace UltimatePenaltyCup.UI
         private void Awake()
         {
             Instance = this;
+            NotificationManager.EnsureInstance();
             InitializeGradient();
         }
 
@@ -154,6 +155,10 @@ namespace UltimatePenaltyCup.UI
             if (txtAttemptCounter != null)
             {
                 txtAttemptCounter.text = $"Penal {attempt} / {max}";
+            }
+            if (attempt == max && PenaltyManager.Instance != null && !PenaltyManager.Instance.IsRoundOver && attempt > 1)
+            {
+                ShowMessageBanner("¡ÚLTIMO PENAL!", "Disparo decisivo de la ronda", new Color(0.84f, 0.48f, 0.08f, 0.94f), 1.45f);
             }
         }
 
@@ -286,7 +291,36 @@ namespace UltimatePenaltyCup.UI
             if (txtResultSub != null) txtResultSub.text = sub;
             if (imgBannerBg != null) imgBannerBg.color = bgColor;
 
-            yield return new WaitForSeconds(duration);
+            CanvasGroup cg = bannerResult.GetComponent<CanvasGroup>();
+            if (cg == null) cg = bannerResult.AddComponent<CanvasGroup>();
+            RectTransform rt = bannerResult.GetComponent<RectTransform>();
+            cg.blocksRaycasts = false;
+
+            float enterT = 0f;
+            while (enterT < 0.18f)
+            {
+                enterT += Time.unscaledDeltaTime;
+                float u = 1f - Mathf.Pow(1f - Mathf.Clamp01(enterT / 0.18f), 3f);
+                cg.alpha = u;
+                float punch = Mathf.Lerp(0.84f, 1.04f, Mathf.Clamp01(u * 1.15f));
+                if (u > 0.85f) punch = Mathf.Lerp(1.04f, 1.0f, (u - 0.85f) / 0.15f);
+                if (rt != null) rt.localScale = new Vector3(punch, punch, 1f);
+                yield return null;
+            }
+            cg.alpha = 1f;
+            if (rt != null) rt.localScale = Vector3.one;
+
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.25f, duration - 0.30f));
+
+            float exitT = 0f;
+            while (exitT < 0.16f)
+            {
+                exitT += Time.unscaledDeltaTime;
+                float u = Mathf.Clamp01(exitT / 0.16f);
+                cg.alpha = 1f - u;
+                if (rt != null) rt.localScale = Vector3.one * Mathf.Lerp(1f, 0.94f, u);
+                yield return null;
+            }
 
             bannerResult.SetActive(false);
         }

@@ -15,9 +15,13 @@ namespace UltimatePenaltyCup.UI
         [SerializeField] private Slider sliderMaster;
         [SerializeField] private Slider sliderMusic;
         [SerializeField] private Slider sliderSfx;
+        [SerializeField] private Slider sliderCrowd;
+        [SerializeField] private Slider sliderUi;
         [SerializeField] private TMP_Text txtMasterVal;
         [SerializeField] private TMP_Text txtMusicVal;
         [SerializeField] private TMP_Text txtSfxVal;
+        [SerializeField] private TMP_Text txtCrowdVal;
+        [SerializeField] private TMP_Text txtUiVal;
 
         [Header("Gameplay Sensitivity")]
         [SerializeField] private Slider sliderSensitivity;
@@ -65,6 +69,8 @@ namespace UltimatePenaltyCup.UI
             if (sliderMaster != null) sliderMaster.onValueChanged.AddListener(OnMasterChanged);
             if (sliderMusic != null) sliderMusic.onValueChanged.AddListener(OnMusicChanged);
             if (sliderSfx != null) sliderSfx.onValueChanged.AddListener(OnSfxChanged);
+            if (sliderCrowd != null) sliderCrowd.onValueChanged.AddListener(OnCrowdChanged);
+            if (sliderUi != null) sliderUi.onValueChanged.AddListener(OnUiChanged);
             if (sliderSensitivity != null) sliderSensitivity.onValueChanged.AddListener(OnSensitivityChanged);
 
             if (btnResPrev != null) btnResPrev.onClick.AddListener(() => StepResolution(-1));
@@ -72,7 +78,7 @@ namespace UltimatePenaltyCup.UI
             if (btnToggleFullscreen != null) btnToggleFullscreen.onClick.AddListener(ToggleFullscreen);
             if (btnQualPrev != null) btnQualPrev.onClick.AddListener(() => StepQuality(-1));
             if (btnQualNext != null) btnQualNext.onClick.AddListener(() => StepQuality(1));
-            if (btnResetDefaults != null) btnResetDefaults.onClick.AddListener(ResetDefaults);
+            if (btnResetDefaults != null) btnResetDefaults.onClick.AddListener(RequestResetDefaultsConfirmation);
 
             if (btnBack != null)
             {
@@ -124,18 +130,24 @@ namespace UltimatePenaltyCup.UI
             var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
 
             float master = AudioManager.Instance != null ? AudioManager.Instance.MasterVolume : (data != null ? data.masterVolume : 1f);
-            float music = AudioManager.Instance != null ? AudioManager.Instance.MusicVolume : (data != null ? data.musicVolume : 0.8f);
-            float sfx = AudioManager.Instance != null ? AudioManager.Instance.SfxVolume : (data != null ? data.sfxVolume : 0.9f);
-            float sens = data != null ? Mathf.Clamp(data.aimSensitivity, 0.5f, 2.0f) : 1.0f;
+            float music  = AudioManager.Instance != null ? AudioManager.Instance.MusicVolume  : (data != null ? data.musicVolume  : 0.8f);
+            float sfx    = AudioManager.Instance != null ? AudioManager.Instance.SfxVolume    : (data != null ? data.sfxVolume    : 0.9f);
+            float crowd  = AudioManager.Instance != null ? AudioManager.Instance.CrowdVolume  : (data != null ? data.crowdVolume  : 0.85f);
+            float uiVol  = AudioManager.Instance != null ? AudioManager.Instance.UiVolume     : (data != null ? data.uiVolume     : 0.90f);
+            float sens   = data != null ? Mathf.Clamp(data.aimSensitivity, 0.5f, 2.0f) : 1.0f;
 
             if (sliderMaster != null) sliderMaster.SetValueWithoutNotify(master);
             if (sliderMusic != null) sliderMusic.SetValueWithoutNotify(music);
             if (sliderSfx != null) sliderSfx.SetValueWithoutNotify(sfx);
+            if (sliderCrowd != null) sliderCrowd.SetValueWithoutNotify(crowd);
+            if (sliderUi != null) sliderUi.SetValueWithoutNotify(uiVol);
             if (sliderSensitivity != null) sliderSensitivity.SetValueWithoutNotify(sens);
 
             UpdatePercentLabel(txtMasterVal, master);
             UpdatePercentLabel(txtMusicVal, music);
             UpdatePercentLabel(txtSfxVal, sfx);
+            UpdatePercentLabel(txtCrowdVal, crowd);
+            UpdatePercentLabel(txtUiVal, uiVol);
             if (txtSensitivityVal != null) txtSensitivityVal.text = $"{sens:F1}x";
 
             isFullscreen = data != null ? data.isFullscreen : Screen.fullScreen;
@@ -179,6 +191,18 @@ namespace UltimatePenaltyCup.UI
             UpdatePercentLabel(txtSfxVal, val);
         }
 
+        private void OnCrowdChanged(float val)
+        {
+            AudioManager.Instance?.SetCrowdVolume(val);
+            UpdatePercentLabel(txtCrowdVal, val);
+        }
+
+        private void OnUiChanged(float val)
+        {
+            AudioManager.Instance?.SetUiVolume(val);
+            UpdatePercentLabel(txtUiVal, val);
+        }
+
         private void OnSensitivityChanged(float val)
         {
             float clamped = Mathf.Clamp(val, 0.5f, 2.0f);
@@ -196,6 +220,8 @@ namespace UltimatePenaltyCup.UI
             if (uniqueResolutions.Count == 0) return;
             currentResIndex = (currentResIndex + delta + uniqueResolutions.Count) % uniqueResolutions.Count;
             ApplyAndSaveDisplay();
+            var r = uniqueResolutions[currentResIndex];
+            NotificationManager.EnsureInstance().ShowToast("RESOLUCIÓN ACTUALIZADA", $"{r.width} x {r.height}", NotificationKind.Info, 1.8f);
         }
 
         private void ToggleFullscreen()
@@ -203,6 +229,7 @@ namespace UltimatePenaltyCup.UI
             AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
             isFullscreen = !isFullscreen;
             ApplyAndSaveDisplay();
+            NotificationManager.EnsureInstance().ShowToast("MODO DE PANTALLA", isFullscreen ? "Pantalla completa activada" : "Modo ventana activado", NotificationKind.Info, 1.8f);
         }
 
         private void StepQuality(int delta)
@@ -217,6 +244,8 @@ namespace UltimatePenaltyCup.UI
                 SaveManager.Instance.Save();
             }
             UpdateDisplayLabels();
+            string qName = (QualitySettings.names != null && qualityIndex < QualitySettings.names.Length) ? QualitySettings.names[qualityIndex] : qualityIndex.ToString();
+            NotificationManager.EnsureInstance().ShowToast("CALIDAD GRÁFICA", $"Preset aplicado: {qName.ToUpper()}", NotificationKind.Success, 2.0f);
         }
 
         private void ApplyAndSaveDisplay()
@@ -235,12 +264,29 @@ namespace UltimatePenaltyCup.UI
             UpdateDisplayLabels();
         }
 
+        public void RequestResetDefaultsConfirmation()
+        {
+            NotificationManager.EnsureInstance().ShowConfirmModal(
+                "RESTAURAR AJUSTES",
+                "¿Deseas restablecer volumen, pantalla y calidad gráfica a los valores predeterminados?",
+                "RESTAURAR",
+                "CANCELAR",
+                onConfirm: () =>
+                {
+                    ResetDefaults();
+                    NotificationManager.EnsureInstance().ShowToast("CONFIGURACIÓN GUARDADA", "Valores predeterminados restaurados.", NotificationKind.Success);
+                },
+                isDestructive: false);
+        }
+
         public void ResetDefaults()
         {
             AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
             AudioManager.Instance?.SetMasterVolume(1.0f);
             AudioManager.Instance?.SetMusicVolume(0.8f);
             AudioManager.Instance?.SetSfxVolume(0.9f);
+            AudioManager.Instance?.SetCrowdVolume(0.85f);
+            AudioManager.Instance?.SetUiVolume(0.90f);
             OnSensitivityChanged(1.0f);
             isFullscreen = true;
             qualityIndex = Mathf.Max(0, QualitySettings.names.Length - 1);
@@ -284,6 +330,11 @@ namespace UltimatePenaltyCup.UI
 
         private void HandleCodeResult(string msg, bool success)
         {
+            NotificationManager.EnsureInstance().ShowToast(
+                success ? "CÓDIGO CANJEADO" : "CÓDIGO INVÁLIDO",
+                msg,
+                success ? NotificationKind.Reward : NotificationKind.Warning);
+
             if (txtCodeMessage != null)
             {
                 txtCodeMessage.gameObject.SetActive(true);

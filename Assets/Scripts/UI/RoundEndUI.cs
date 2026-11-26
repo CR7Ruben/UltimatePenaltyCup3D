@@ -143,6 +143,7 @@ namespace UltimatePenaltyCup.UI
             if (txtAttempts != null) txtAttempts.text = $"Intentos utilizados: {summary.attemptsUsed} de {summary.maxAttempts}";
             if (txtScore != null) txtScore.text = $"Puntuación: {summary.matchScore:N0} pts";
             if (txtCoinsGained != null) txtCoinsGained.text = $"Monedas ganadas: +{summary.matchCoins:N0}";
+            if (gameObject.activeInHierarchy) StartCoroutine(AnimateSummaryCountersRoutine(summary.matchScore, summary.matchCoins));
             if (txtBonusDetails != null)
             {
                 txtBonusDetails.text = summary.isVictory
@@ -153,6 +154,22 @@ namespace UltimatePenaltyCup.UI
             if (badgeNewRecord != null) badgeNewRecord.SetActive(summary.isNewRecord);
             if (imgVictoryTrophy != null) imgVictoryTrophy.gameObject.SetActive(summary.isVictory);
             if (btnNextRound != null) btnNextRound.gameObject.SetActive(summary.isVictory && summary.roundNumber < 5);
+        }
+
+        private System.Collections.IEnumerator AnimateSummaryCountersRoutine(int targetScore, int targetCoins)
+        {
+            float elapsed = 0f;
+            const float dur = 0.50f;
+            while (elapsed < dur)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float u = 1f - Mathf.Pow(1f - Mathf.Clamp01(elapsed / dur), 3f);
+                if (txtScore != null) txtScore.text = $"Puntuación: {Mathf.RoundToInt(targetScore * u):N0} pts";
+                if (txtCoinsGained != null) txtCoinsGained.text = $"Monedas ganadas: +{Mathf.RoundToInt(targetCoins * u):N0}";
+                yield return null;
+            }
+            if (txtScore != null) txtScore.text = $"Puntuación: {targetScore:N0} pts";
+            if (txtCoinsGained != null) txtCoinsGained.text = $"Monedas ganadas: +{targetCoins:N0}";
         }
 
         private void OnNextRoundClicked()

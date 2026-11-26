@@ -37,11 +37,15 @@ namespace UltimatePenaltyCup.UI
         [SerializeField] private Button btnSubmitCode;
         [SerializeField] private TMP_Text txtCodeFeedback;
 
+        private int displayedCoins = -1;
+        private Coroutine coinCountCoroutine;
+
         private void Start()
         {
             Time.timeScale = 1f;
+            NotificationManager.EnsureInstance();
             SetupButtons();
-            UpdateCurrencyUI();
+            UpdateCurrencyUI(instant: true);
 
             if (GameManager.Instance != null && GameManager.Instance.RequestOpenAchievementsOnMenu)
             {
@@ -86,7 +90,7 @@ namespace UltimatePenaltyCup.UI
             if (btnCustomization != null) btnCustomization.onClick.AddListener(() => OpenPanel(panelCustomization));
             if (btnAchievements != null) btnAchievements.onClick.AddListener(() => OpenPanel(panelAchievements));
             if (btnSettings != null) btnSettings.onClick.AddListener(() => OpenPanel(panelSettings));
-            if (btnQuit != null) btnQuit.onClick.AddListener(OnQuitClicked);
+            if (btnQuit != null) btnQuit.onClick.AddListener(RequestQuitConfirmation);
 
             if (btnSubmitCode != null && inputSecretCode != null)
             {
@@ -117,18 +121,45 @@ namespace UltimatePenaltyCup.UI
             if (panelSettings != null) panelSettings.SetActive(panelSettings == activePanel);
         }
 
-        public void UpdateCurrencyUI()
+        public void UpdateCurrencyUI() => UpdateCurrencyUI(instant: false);
+
+        private void UpdateCurrencyUI(bool instant)
         {
             if (txtCoins != null)
             {
-                int coins = CurrencyManager.Instance != null ? CurrencyManager.Instance.Coins : 0;
-                txtCoins.text = $"{coins:N0}";
+                int targetCoins = CurrencyManager.Instance != null ? CurrencyManager.Instance.Coins : 0;
+                if (instant || displayedCoins < 0 || !gameObject.activeInHierarchy)
+                {
+                    displayedCoins = targetCoins;
+                    txtCoins.text = $"{targetCoins:N0}";
+                }
+                else if (displayedCoins != targetCoins)
+                {
+                    if (coinCountCoroutine != null) StopCoroutine(coinCountCoroutine);
+                    coinCountCoroutine = StartCoroutine(AnimateCoinsRoutine(displayedCoins, targetCoins));
+                }
             }
 
             if (txtHighScore != null && SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
             {
                 txtHighScore.text = $"Récord: {SaveManager.Instance.CurrentData.highScore:N0} pts";
             }
+        }
+
+        private System.Collections.IEnumerator AnimateCoinsRoutine(int fromVal, int toVal)
+        {
+            float elapsed = 0f;
+            const float dur = 0.45f;
+            while (elapsed < dur)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float u = 1f - Mathf.Pow(1f - Mathf.Clamp01(elapsed / dur), 3f);
+                displayedCoins = Mathf.RoundToInt(Mathf.Lerp(fromVal, toVal, u));
+                if (txtCoins != null) txtCoins.text = $"{displayedCoins:N0}";
+                yield return null;
+            }
+            displayedCoins = toVal;
+            if (txtCoins != null) txtCoins.text = $"{toVal:N0}";
         }
 
         private void OnSubmitSecretCode()
@@ -142,11 +173,16 @@ namespace UltimatePenaltyCup.UI
 
         private void HandleCodeAttemptFeedback(string message, bool success)
         {
+            NotificationManager.EnsureInstance().ShowToast(
+                success ? "CÓDIGO CANJEADO" : "CÓDIGO INVÁLIDO",
+                message,
+                success ? NotificationKind.Reward : NotificationKind.Warning);
+
             if (txtCodeFeedback != null)
             {
                 txtCodeFeedback.gameObject.SetActive(true);
                 txtCodeFeedback.text = message;
-                txtCodeFeedback.color = success ? Color.green : Color.red;
+                txtCodeFeedback.color = success ? new Color(0.14f, 0.80f, 0.45f) : new Color(0.90f, 0.26f, 0.28f);
                 CancelInvoke(nameof(HideCodeFeedback));
                 Invoke(nameof(HideCodeFeedback), 3.0f);
             }
@@ -155,6 +191,18 @@ namespace UltimatePenaltyCup.UI
         private void HideCodeFeedback()
         {
             if (txtCodeFeedback != null) txtCodeFeedback.gameObject.SetActive(false);
+        }
+
+        public void RequestQuitConfirmation()
+        {
+            AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
+            NotificationManager.EnsureInstance().ShowConfirmModal(
+                "SALIR DEL JUEGO",
+                "¿Deseas cerrar UltimatePenaltyCup3D? Tu progreso está guardado.",
+                "SALIR",
+                "CANCELAR",
+                onConfirm: () => GameManager.Instance?.QuitGame(),
+                isDestructive: true);
         }
 
         private void OnQuitClicked()

@@ -177,11 +177,37 @@ namespace UltimatePenaltyCup.Core
                 var vsyncStats = new FrameStats();
                 yield return SampleFrames(60, vsyncStats, drawCallsRec, setPassRec, trisRec, gcAllocRec);
 
+                // Phase 6: Measure Peak WorldCup Stadium (with GPU-instanced crowds + UI toast) across Baja / Media / Alta presets
                 sb.AppendLine($"4. REAL FULL-ANIMATION SHOTS + KEEPER DIVES ({shotsDone} shots at 1920x1080):");
                 AppendStatsLine(sb, "   ShotAction", shotStats);
                 sb.AppendLine("5. SHIPPING VSYNC/TARGET-60 STABILITY (60 frames):");
                 AppendStatsLine(sb, "   ShippingCap", vsyncStats);
-                sb.AppendLine($"6. MEMORY SUMMARY: MonoHeap={GC.GetTotalMemory(false) / (1024f * 1024f):F2} MB | UnityAllocated={Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f):F2} MB | AvgGC/Frame={shotStats.AvgGcKb:F2} KB");
+
+                sb.AppendLine("6. QUALITY PRESETS ON PEAK WORLDCUP STADIUM + CROWD + UI ALERT (Uncapped 60 frames each at 1920x1080):");
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = -1;
+                StadiumController.Instance?.ApplyVenue(StadiumType.WorldCup);
+                CrowdManager.Instance?.TriggerReaction(CrowdReactionMode.GoalCelebrate, 1.0f, 3.0f);
+                int prevQuality = QualitySettings.GetQualityLevel();
+                for (int q = 0; q <= 2; q++)
+                {
+                    if (q < QualitySettings.names.Length)
+                    {
+                        QualitySettings.SetQualityLevel(q, true);
+                        QualitySettings.vSyncCount = 0;
+                        Application.targetFrameRate = -1;
+                        CrowdManager.Instance?.SetQualityDensityRefresh();
+                        yield return null;
+                        yield return null;
+                        var qStats = new FrameStats();
+                        yield return SampleFrames(60, qStats, drawCallsRec, setPassRec, trisRec, gcAllocRec);
+                        int crowdCnt = CrowdManager.Instance != null ? CrowdManager.Instance.ActiveSpectatorCount : 0;
+                        sb.AppendLine($"   Preset[{QualitySettings.names[q],-5}] Crowd={crowdCnt,4} | AvgFPS={qStats.AvgFps,6:F1} | 1%Low={qStats.OnePercentLowFps,6:F1} | AvgFrame={qStats.AvgMs,5:F2} ms | SetPass={qStats.AvgSetPass:F0} | Tris={qStats.AvgTris:F0}");
+                    }
+                }
+                QualitySettings.SetQualityLevel(prevQuality, true);
+
+                sb.AppendLine($"7. MEMORY SUMMARY: MonoHeap={GC.GetTotalMemory(false) / (1024f * 1024f):F2} MB | UnityAllocated={Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f):F2} MB | AvgGC/Frame={shotStats.AvgGcKb:F2} KB");
                 sb.AppendLine("====================================================================================");
 
                 string outPath = ResolveLogOutputPath();
@@ -208,6 +234,10 @@ namespace UltimatePenaltyCup.Core
             string logsDir = Path.Combine(cwd, "Logs");
             if (Directory.Exists(logsDir))
                 return Path.Combine(logsDir, "Standalone1080pBenchmark.txt");
+
+            string repoLogs = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "Logs"));
+            if (Directory.Exists(repoLogs))
+                return Path.Combine(repoLogs, "Standalone1080pBenchmark.txt");
 
             return Path.Combine(Application.dataPath, "..", "Standalone1080pBenchmark.txt");
         }

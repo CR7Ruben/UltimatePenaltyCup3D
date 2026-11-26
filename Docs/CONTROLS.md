@@ -28,4 +28,4 @@
 - **TIENDA:** Pestañas separadas para **Balones** y **Estadios** con previsualizaciones 3D transparentes.
 - **PERSONALIZACIÓN:** Equipamiento de balones y estadios (estadio fijo en las 5 rondas o modo **Automático por Ronda**).
 - **LOGROS:** Medallas y barras de progreso en vivo de los 7 objetivos.
-- **OPCIONES:** Volumen General, Música, Efectos, Sensibilidad de apuntado, Resolución, Pantalla completa/ventana, Calidad gráfica (**Baja** / **Media** / **Alta**), Restaurar predeterminados y canje de códigos promocionales.
+- **OPCIONES:** Volumen General, Música, Efectos, Público e Interfaz, Sensibilidad de apuntado, Resolución, Pantalla completa/ventana, Calidad gráfica (**Baja** / **Media** / **Alta**), Restaurar predeterminados (con modal de confirmación) y canje de códigos promocionales.

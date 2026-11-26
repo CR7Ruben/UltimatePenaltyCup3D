@@ -24,7 +24,16 @@ namespace UltimatePenaltyCup.Audio
         PostHit,
         Whistle,
         Miss,
-        CrowdAmbient
+        CrowdAmbient,
+        Footstep,
+        NetSwish,
+        TurfLanding,
+        UiConfirm,
+        UiError,
+        CrowdGoalRoar,
+        CrowdSaveGasp,
+        CrowdMissGroan,
+        CrowdApplause
     }
 
     public class AudioManager : MonoBehaviour
@@ -34,6 +43,7 @@ namespace UltimatePenaltyCup.Audio
         [Header("Audio Sources")]
         [SerializeField] private AudioSource bgmSource;
         [SerializeField] private AudioSource sfxSource;
+        [SerializeField] private AudioSource uiSource;
 
         [Header("Audio Clips (Optional - procedural fallback if unassigned)")]
         [SerializeField] private AudioClip bgmMenu;
@@ -52,28 +62,23 @@ namespace UltimatePenaltyCup.Audio
         [SerializeField] private AudioClip sfxMiss;
         [SerializeField] private AudioClip sfxCrowd;
 
-        private AudioClip procKick;
-        private AudioClip procGoal;
-        private AudioClip procSave;
-        private AudioClip procPurchase;
-        private AudioClip procUnlock;
-        private AudioClip procButtonClick;
-        private AudioClip procPostHit;
-        private AudioClip procWhistle;
-        private AudioClip procMiss;
-        private AudioClip procCrowd;
-        private AudioClip procBgmMenu;
-        private AudioClip procBgmMatch;
-        private AudioClip procBgmVictory;
-        private AudioClip procBgmDefeat;
+        private AudioClip procKick, procGoal, procSave, procPurchase, procUnlock, procButtonClick;
+        private AudioClip procPostHit, procWhistle, procMiss, procCrowd;
+        private AudioClip procFootstep, procNetSwish, procTurfLanding, procUiConfirm, procUiError;
+        private AudioClip procCrowdGoalRoar, procCrowdSaveGasp, procCrowdMissGroan, procCrowdApplause;
+        private AudioClip procBgmMenu, procBgmMatch, procBgmVictory, procBgmDefeat;
 
-        private static readonly float[] UnlockNotes = { 440f, 554.37f, 659.25f, 880f }; // A4, C#5, E5, A5
+        private static readonly float[] UnlockNotes = { 440f, 554.37f, 659.25f, 880f };
         private static readonly float[] VictoryMelody = { 523.25f, 659.25f, 783.99f, 1046.50f };
         private static readonly float[] DefeatMelody = { 440f, 392f, 349.23f, 329.63f };
 
         public float MasterVolume { get; private set; } = 1.0f;
         public float MusicVolume { get; private set; } = 0.8f;
         public float SfxVolume { get; private set; } = 0.9f;
+        public float CrowdVolume { get; private set; } = 0.85f;
+        public float UiVolume { get; private set; } = 0.90f;
+
+        public event Action OnVolumeSettingsChanged;
 
         private void Awake()
         {
@@ -105,24 +110,39 @@ namespace UltimatePenaltyCup.Audio
                 sfxSource.loop = false;
                 sfxSource.playOnAwake = false;
             }
+
+            if (uiSource == null)
+            {
+                uiSource = gameObject.AddComponent<AudioSource>();
+                uiSource.loop = false;
+                uiSource.playOnAwake = false;
+                uiSource.ignoreListenerPause = true;
+            }
         }
 
-        private void LoadVolumeSettings()
+        public void LoadVolumeSettings()
         {
             if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
             {
-                MasterVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.masterVolume);
+                var d = SaveManager.Instance.CurrentData;
+                MasterVolume = Mathf.Clamp01(d.masterVolume);
                 AudioListener.volume = MasterVolume;
-                MusicVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.musicVolume);
-                SfxVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.sfxVolume);
+                MusicVolume = Mathf.Clamp01(d.musicVolume);
+                SfxVolume = Mathf.Clamp01(d.sfxVolume);
+                CrowdVolume = Mathf.Clamp01(d.crowdVolume);
+                UiVolume = Mathf.Clamp01(d.uiVolume);
                 if (bgmSource != null) bgmSource.volume = MusicVolume;
                 if (sfxSource != null) sfxSource.volume = SfxVolume;
+                if (uiSource != null) uiSource.volume = UiVolume;
+                OnVolumeSettingsChanged?.Invoke();
             }
             else
             {
                 SetMasterVolume(1.0f);
                 SetMusicVolume(0.8f);
                 SetSfxVolume(0.9f);
+                SetCrowdVolume(0.85f);
+                SetUiVolume(0.90f);
             }
         }
 
@@ -135,6 +155,7 @@ namespace UltimatePenaltyCup.Audio
                 SaveManager.Instance.CurrentData.masterVolume = MasterVolume;
                 SaveManager.Instance.Save();
             }
+            OnVolumeSettingsChanged?.Invoke();
         }
 
         public void SetMusicVolume(float volume)
@@ -146,6 +167,7 @@ namespace UltimatePenaltyCup.Audio
                 SaveManager.Instance.CurrentData.musicVolume = MusicVolume;
                 SaveManager.Instance.Save();
             }
+            OnVolumeSettingsChanged?.Invoke();
         }
 
         public void SetSfxVolume(float volume)
@@ -157,26 +179,69 @@ namespace UltimatePenaltyCup.Audio
                 SaveManager.Instance.CurrentData.sfxVolume = SfxVolume;
                 SaveManager.Instance.Save();
             }
+            OnVolumeSettingsChanged?.Invoke();
+        }
+
+        public void SetCrowdVolume(float volume)
+        {
+            CrowdVolume = Mathf.Clamp01(volume);
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
+            {
+                SaveManager.Instance.CurrentData.crowdVolume = CrowdVolume;
+                SaveManager.Instance.Save();
+            }
+            OnVolumeSettingsChanged?.Invoke();
+        }
+
+        public void SetUiVolume(float volume)
+        {
+            UiVolume = Mathf.Clamp01(volume);
+            if (uiSource != null) uiSource.volume = UiVolume;
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
+            {
+                SaveManager.Instance.CurrentData.uiVolume = UiVolume;
+                SaveManager.Instance.Save();
+            }
+            OnVolumeSettingsChanged?.Invoke();
+        }
+
+        public AudioClip GetClip(SfxType type)
+        {
+            return type switch
+            {
+                SfxType.S01_Kick        => sfxKick != null ? sfxKick : procKick,
+                SfxType.S02_Goal        => sfxGoal != null ? sfxGoal : procGoal,
+                SfxType.S03_Save        => sfxSave != null ? sfxSave : procSave,
+                SfxType.S04_Purchase    => sfxPurchase != null ? sfxPurchase : procPurchase,
+                SfxType.S05_Unlock      => sfxUnlock != null ? sfxUnlock : procUnlock,
+                SfxType.S06_ButtonClick => sfxButtonClick != null ? sfxButtonClick : procButtonClick,
+                SfxType.PostHit         => sfxPostHit != null ? sfxPostHit : procPostHit,
+                SfxType.Whistle         => sfxWhistle != null ? sfxWhistle : procWhistle,
+                SfxType.Miss            => sfxMiss != null ? sfxMiss : procMiss,
+                SfxType.CrowdAmbient    => sfxCrowd != null ? sfxCrowd : procCrowd,
+                SfxType.Footstep        => procFootstep,
+                SfxType.NetSwish        => procNetSwish,
+                SfxType.TurfLanding     => procTurfLanding,
+                SfxType.UiConfirm       => procUiConfirm,
+                SfxType.UiError         => procUiError,
+                SfxType.CrowdGoalRoar   => procCrowdGoalRoar,
+                SfxType.CrowdSaveGasp   => procCrowdSaveGasp,
+                SfxType.CrowdMissGroan  => procCrowdMissGroan,
+                SfxType.CrowdApplause   => procCrowdApplause,
+                _ => null
+            };
         }
 
         public void PlayBgm(BgmType type)
         {
-            AudioClip clip = null;
-            switch (type)
+            AudioClip clip = type switch
             {
-                case BgmType.M01_MainMenu:
-                    clip = bgmMenu != null ? bgmMenu : procBgmMenu;
-                    break;
-                case BgmType.M02_Match:
-                    clip = bgmMatch != null ? bgmMatch : procBgmMatch;
-                    break;
-                case BgmType.M03_Victory:
-                    clip = bgmVictory != null ? bgmVictory : procBgmVictory;
-                    break;
-                case BgmType.M04_Defeat:
-                    clip = bgmDefeat != null ? bgmDefeat : procBgmDefeat;
-                    break;
-            }
+                BgmType.M01_MainMenu => bgmMenu != null ? bgmMenu : procBgmMenu,
+                BgmType.M02_Match    => bgmMatch != null ? bgmMatch : procBgmMatch,
+                BgmType.M03_Victory  => bgmVictory != null ? bgmVictory : procBgmVictory,
+                BgmType.M04_Defeat   => bgmDefeat != null ? bgmDefeat : procBgmDefeat,
+                _ => null
+            };
 
             if (clip != null && bgmSource != null)
             {
@@ -194,52 +259,27 @@ namespace UltimatePenaltyCup.Audio
 
         public void PlaySfx(SfxType type)
         {
-            AudioClip clip = null;
-            float pitch = 1.0f;
+            AudioClip clip = GetClip(type);
+            if (clip == null) return;
 
-            switch (type)
-            {
-                case SfxType.S01_Kick:
-                    clip = sfxKick != null ? sfxKick : procKick;
-                    pitch = UnityEngine.Random.Range(0.92f, 1.08f);
-                    break;
-                case SfxType.S02_Goal:
-                    clip = sfxGoal != null ? sfxGoal : procGoal;
-                    break;
-                case SfxType.S03_Save:
-                    clip = sfxSave != null ? sfxSave : procSave;
-                    pitch = UnityEngine.Random.Range(0.95f, 1.05f);
-                    break;
-                case SfxType.S04_Purchase:
-                    clip = sfxPurchase != null ? sfxPurchase : procPurchase;
-                    break;
-                case SfxType.S05_Unlock:
-                    clip = sfxUnlock != null ? sfxUnlock : procUnlock;
-                    break;
-                case SfxType.S06_ButtonClick:
-                    clip = sfxButtonClick != null ? sfxButtonClick : procButtonClick;
-                    pitch = UnityEngine.Random.Range(0.98f, 1.02f);
-                    break;
-                case SfxType.PostHit:
-                    clip = sfxPostHit != null ? sfxPostHit : procPostHit;
-                    pitch = UnityEngine.Random.Range(0.9f, 1.1f);
-                    break;
-                case SfxType.Whistle:
-                    clip = sfxWhistle != null ? sfxWhistle : procWhistle;
-                    break;
-                case SfxType.Miss:
-                    clip = sfxMiss != null ? sfxMiss : procMiss;
-                    break;
-                case SfxType.CrowdAmbient:
-                    clip = sfxCrowd != null ? sfxCrowd : procCrowd;
-                    break;
-            }
+            bool isUi = type == SfxType.S06_ButtonClick || type == SfxType.S04_Purchase || type == SfxType.S05_Unlock ||
+                        type == SfxType.UiConfirm || type == SfxType.UiError;
+            AudioSource src = isUi && uiSource != null ? uiSource : sfxSource;
+            if (src == null) return;
 
-            if (clip != null && sfxSource != null)
+            float pitch = type switch
             {
-                sfxSource.pitch = pitch;
-                sfxSource.PlayOneShot(clip, SfxVolume);
-            }
+                SfxType.S01_Kick        => UnityEngine.Random.Range(0.92f, 1.08f),
+                SfxType.S03_Save        => UnityEngine.Random.Range(0.95f, 1.05f),
+                SfxType.S06_ButtonClick => UnityEngine.Random.Range(0.98f, 1.02f),
+                SfxType.PostHit         => UnityEngine.Random.Range(0.92f, 1.08f),
+                SfxType.Footstep        => UnityEngine.Random.Range(0.90f, 1.12f),
+                SfxType.TurfLanding     => UnityEngine.Random.Range(0.92f, 1.06f),
+                _ => 1.0f
+            };
+            float vol = isUi ? UiVolume : SfxVolume;
+            src.pitch = pitch;
+            src.PlayOneShot(clip, vol);
         }
 
         #region Procedural Audio Synthesis
@@ -247,7 +287,6 @@ namespace UltimatePenaltyCup.Audio
         {
             const int sampleRate = 22050;
 
-            // 1. Kick: Low pitch punch
             procKick = CreateSyntheticClip("Proc_Kick", 0.28f, sampleRate, (t, dur) =>
             {
                 float progress = t / dur;
@@ -256,54 +295,61 @@ namespace UltimatePenaltyCup.Audio
                 return Mathf.Sin(2f * Mathf.PI * freq * t) * envelope;
             });
 
-            // 2. Goal: Cheerful chime / applause roar synthesis
             procGoal = CreateSyntheticClip("Proc_Goal", 1.2f, sampleRate, (t, dur) =>
             {
                 float env = Mathf.Sin(Mathf.Clamp01(t / 0.1f) * Mathf.PI * 0.5f) * Mathf.Clamp01((dur - t) / dur);
-                float chord = Mathf.Sin(2f * Mathf.PI * 523.25f * t) // C5
-                            + Mathf.Sin(2f * Mathf.PI * 659.25f * t) // E5
-                            + Mathf.Sin(2f * Mathf.PI * 783.99f * t) // G5
-                            + Mathf.Sin(2f * Mathf.PI * 1046.50f * t); // C6
-                float noise = (UnityEngine.Random.value * 2f - 1f) * 0.25f;
-                return (chord * 0.25f + noise) * env;
+                float chord = Mathf.Sin(2f * Mathf.PI * 523.25f * t)
+                            + Mathf.Sin(2f * Mathf.PI * 659.25f * t)
+                            + Mathf.Sin(2f * Mathf.PI * 783.99f * t)
+                            + Mathf.Sin(2f * Mathf.PI * 1046.50f * t);
+                return chord * 0.22f * env;
             });
 
-            // 3. Save: Thud deflection
             procSave = CreateSyntheticClip("Proc_Save", 0.35f, sampleRate, (t, dur) =>
             {
                 float progress = t / dur;
                 float env = Mathf.Pow(1f - progress, 3f);
                 float slap = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(300f, 60f, progress) * t);
-                float noise = (UnityEngine.Random.value * 2f - 1f) * 0.4f * env;
+                float noise = (UnityEngine.Random.value * 2f - 1f) * 0.35f * env;
                 return slap * env * 0.7f + noise;
             });
 
-            // 4. Purchase: Cash chime
             procPurchase = CreateSyntheticClip("Proc_Purchase", 0.45f, sampleRate, (t, dur) =>
             {
-                float f = t < 0.15f ? 1174.66f : 1567.98f; // D6 -> G6
+                float f = t < 0.15f ? 1174.66f : 1567.98f;
                 float env = Mathf.Clamp01(1f - (t % 0.15f) / 0.15f);
                 return Mathf.Sin(2f * Mathf.PI * f * t) * env;
             });
 
-            // 5. Unlock: Fanfare Arpeggio
             procUnlock = CreateSyntheticClip("Proc_Unlock", 0.8f, sampleRate, (t, dur) =>
             {
                 float step = Mathf.Floor(t / 0.18f);
                 int idx = Mathf.Clamp((int)step, 0, UnlockNotes.Length - 1);
                 float noteT = t - step * 0.18f;
                 float env = Mathf.Clamp01(1f - (noteT / 0.18f));
-                return Mathf.Sin(2f * Mathf.PI * UnlockNotes[idx] * t) * env * 0.8f;
+                return Mathf.Sin(2f * Mathf.PI * UnlockNotes[idx] * t) * env * 0.75f;
             });
 
-            // 6. Button Click: Subtle high tick
-            procButtonClick = CreateSyntheticClip("Proc_ButtonClick", 0.06f, sampleRate, (t, dur) =>
+            procButtonClick = CreateSyntheticClip("Proc_ButtonClick", 0.055f, sampleRate, (t, dur) =>
             {
-                float env = Mathf.Clamp01(1f - t / dur);
-                return Mathf.Sin(2f * Mathf.PI * 1100f * t) * env;
+                float env = Mathf.Pow(1f - t / dur, 2f);
+                return Mathf.Sin(2f * Mathf.PI * 1050f * t) * env * 0.7f;
             });
 
-            // 7. Post Hit: Metallic ping
+            procUiConfirm = CreateSyntheticClip("Proc_UiConfirm", 0.16f, sampleRate, (t, dur) =>
+            {
+                float freq = t < 0.07f ? 784f : 1046.5f;
+                float env = Mathf.Clamp01(1f - (t / dur));
+                return Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.6f;
+            });
+
+            procUiError = CreateSyntheticClip("Proc_UiError", 0.22f, sampleRate, (t, dur) =>
+            {
+                float freq = t < 0.11f ? 280f : 210f;
+                float env = Mathf.Clamp01(1f - t / dur);
+                return Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.55f;
+            });
+
             procPostHit = CreateSyntheticClip("Proc_PostHit", 0.4f, sampleRate, (t, dur) =>
             {
                 float env = Mathf.Pow(1f - (t / dur), 4f);
@@ -311,71 +357,82 @@ namespace UltimatePenaltyCup.Audio
                 return ping * env;
             });
 
-            // 7b. Referee Whistle: Dual-tone pea trill
             procWhistle = CreateSyntheticClip("Proc_Whistle", 0.42f, sampleRate, (t, dur) =>
             {
                 float env = Mathf.Clamp01(t / 0.03f) * Mathf.Clamp01((dur - t) / 0.05f);
                 float trill = Mathf.Sin(2f * Mathf.PI * 38f * t) * 110f;
                 float s1 = Mathf.Sin(2f * Mathf.PI * (2750f + trill) * t);
                 float s2 = Mathf.Sin(2f * Mathf.PI * (2950f + trill) * t);
-                return (s1 + s2) * 0.42f * env;
+                return (s1 + s2) * 0.36f * env;
             });
 
-            // 7c. Miss: Soft whoosh + disappointed crowd sigh
-            procMiss = CreateSyntheticClip("Proc_Miss", 0.5f, sampleRate, (t, dur) =>
+            procMiss = CreateSyntheticClip("Proc_Miss", 0.45f, sampleRate, (t, dur) =>
             {
                 float env = Mathf.Pow(1f - (t / dur), 1.8f);
-                float low = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(210f, 110f, t / dur) * t) * 0.45f;
-                float air = (UnityEngine.Random.value * 2f - 1f) * 0.25f;
-                return (low + air) * env;
+                return Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(210f, 110f, t / dur) * t) * 0.4f * env;
             });
 
-            // 7d. Crowd Ambient Burst
-            procCrowd = CreateSyntheticClip("Proc_Crowd", 1.1f, sampleRate, (t, dur) =>
+            procFootstep = CreateFilteredNoiseClip("Proc_Footstep", 0.11f, sampleRate, cutoff: 0.14f, (t, dur) =>
+                Mathf.Pow(1f - t / dur, 2.2f) * 0.32f);
+
+            procNetSwish = CreateFilteredNoiseClip("Proc_NetSwish", 0.28f, sampleRate, cutoff: 0.24f, (t, dur) =>
+                Mathf.Sin(Mathf.Clamp01(t / 0.05f) * Mathf.PI * 0.5f) * Mathf.Pow(1f - t / dur, 1.5f) * 0.45f);
+
+            procTurfLanding = CreateFilteredNoiseClip("Proc_TurfLanding", 0.24f, sampleRate, cutoff: 0.10f, (t, dur) =>
+                Mathf.Pow(1f - t / dur, 2.0f) * 0.50f);
+
+            // Warm filtered seamless ambient crowd murmur loop (4.0s)
+            procCrowd = CreateFilteredCrowdLoop("Proc_CrowdAmbientLoop", 4.0f, sampleRate, 0.08f, baseChantFreq: 185f);
+
+            // Warm stadium reaction clips
+            procCrowdGoalRoar = CreateFilteredNoiseClip("Proc_CrowdGoalRoar", 2.2f, sampleRate, cutoff: 0.13f, (t, dur) =>
+                Mathf.Sin(Mathf.Clamp01(t / 0.18f) * Mathf.PI * 0.5f) * Mathf.Pow(1f - t / dur, 0.85f) * 0.72f);
+
+            procCrowdSaveGasp = CreateFilteredNoiseClip("Proc_CrowdSaveGasp", 1.3f, sampleRate, cutoff: 0.16f, (t, dur) =>
+                Mathf.Sin(Mathf.Clamp01(t / 0.08f) * Mathf.PI * 0.5f) * Mathf.Pow(1f - t / dur, 1.3f) * 0.58f);
+
+            procCrowdMissGroan = CreateFilteredNoiseClip("Proc_CrowdMissGroan", 1.4f, sampleRate, cutoff: 0.07f, (t, dur) =>
+                Mathf.Sin(Mathf.Clamp01(t / 0.12f) * Mathf.PI * 0.5f) * Mathf.Pow(1f - t / dur, 1.1f) * 0.55f);
+
+            procCrowdApplause = CreateFilteredNoiseClip("Proc_CrowdApplause", 1.5f, sampleRate, cutoff: 0.22f, (t, dur) =>
             {
-                float env = Mathf.Sin(Mathf.Clamp01(t / dur) * Mathf.PI);
-                float roar = (UnityEngine.Random.value * 2f - 1f) * 0.22f;
-                return roar * env;
+                float clapPulse = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(t * 28f));
+                return clapPulse * Mathf.Sin(Mathf.Clamp01(t / 0.1f) * Mathf.PI * 0.5f) * Mathf.Clamp01(1f - t / dur) * 0.52f;
             });
 
-            // 8. BGM Menu: Uplifting sports loop
             procBgmMenu = CreateSyntheticLoop("Proc_BgmMenu", 4.0f, sampleRate, (t) =>
             {
                 float beat = (t % 0.5f) / 0.5f;
                 float kickEnv = Mathf.Pow(Mathf.Clamp01(1f - beat * 3f), 2f);
-                float kick = Mathf.Sin(2f * Mathf.PI * 65f * t) * kickEnv * 0.6f;
+                float kick = Mathf.Sin(2f * Mathf.PI * 65f * t) * kickEnv * 0.5f;
                 float bassNote = ((int)(t / 1.0f) % 4) switch { 0 => 110f, 1 => 130.81f, 2 => 146.83f, _ => 98f };
-                float bass = Mathf.Sin(2f * Mathf.PI * bassNote * t) * 0.25f;
+                float bass = Mathf.Sin(2f * Mathf.PI * bassNote * t) * 0.20f;
                 return kick + bass;
             });
 
-            // 9. BGM Match: Dynamic sports beat
             procBgmMatch = CreateSyntheticLoop("Proc_BgmMatch", 4.0f, sampleRate, (t) =>
             {
                 float beat = (t % 0.25f) / 0.25f;
-                float kick = Mathf.Sin(2f * Mathf.PI * 75f * t) * Mathf.Pow(Mathf.Clamp01(1f - beat * 4f), 2f) * 0.5f;
-                float hihat = ((t % 0.125f) < 0.03f ? (UnityEngine.Random.value * 2f - 1f) * 0.12f : 0f);
+                float kick = Mathf.Sin(2f * Mathf.PI * 75f * t) * Mathf.Pow(Mathf.Clamp01(1f - beat * 4f), 2f) * 0.42f;
                 float bassNote = ((int)(t / 0.5f) % 4) switch { 0 => 120f, 1 => 140f, 2 => 160f, _ => 100f };
-                float synth = Mathf.Sin(2f * Mathf.PI * bassNote * t) * 0.25f;
-                return kick + hihat + synth;
+                float synth = Mathf.Sin(2f * Mathf.PI * bassNote * t) * 0.20f;
+                return kick + synth;
             });
 
-            // 10. BGM Victory: Fanfare loop
             procBgmVictory = CreateSyntheticLoop("Proc_BgmVictory", 3.0f, sampleRate, (t) =>
             {
                 int idx = (int)(t / 0.75f) % VictoryMelody.Length;
                 float noteT = (t % 0.75f);
                 float env = Mathf.Clamp01(1f - noteT / 0.75f);
-                return Mathf.Sin(2f * Mathf.PI * VictoryMelody[idx] * t) * env * 0.4f;
+                return Mathf.Sin(2f * Mathf.PI * VictoryMelody[idx] * t) * env * 0.35f;
             });
 
-            // 11. BGM Defeat: Minor cadence
             procBgmDefeat = CreateSyntheticLoop("Proc_BgmDefeat", 3.0f, sampleRate, (t) =>
             {
                 int idx = (int)(t / 0.75f) % DefeatMelody.Length;
                 float noteT = (t % 0.75f);
                 float env = Mathf.Clamp01(1f - noteT / 0.75f);
-                return Mathf.Sin(2f * Mathf.PI * DefeatMelody[idx] * t) * env * 0.35f;
+                return Mathf.Sin(2f * Mathf.PI * DefeatMelody[idx] * t) * env * 0.30f;
             });
         }
 
@@ -387,6 +444,42 @@ namespace UltimatePenaltyCup.Audio
             {
                 float t = (float)i / sampleRate;
                 data[i] = Mathf.Clamp(sampleFunc(t, duration), -1f, 1f);
+            }
+            AudioClip clip = AudioClip.Create(name, numSamples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        private AudioClip CreateFilteredNoiseClip(string name, float duration, int sampleRate, float cutoff, Func<float, float, float> envFunc)
+        {
+            int numSamples = Mathf.FloorToInt(duration * sampleRate);
+            float[] data = new float[numSamples];
+            float lp = 0f;
+            for (int i = 0; i < numSamples; i++)
+            {
+                float t = (float)i / sampleRate;
+                float white = UnityEngine.Random.value * 2f - 1f;
+                lp = Mathf.Lerp(lp, white, cutoff);
+                data[i] = Mathf.Clamp(lp * envFunc(t, duration) * 2.2f, -1f, 1f);
+            }
+            AudioClip clip = AudioClip.Create(name, numSamples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        private AudioClip CreateFilteredCrowdLoop(string name, float duration, int sampleRate, float cutoff, float baseChantFreq)
+        {
+            int numSamples = Mathf.FloorToInt(duration * sampleRate);
+            float[] data = new float[numSamples];
+            float lp = 0f;
+            for (int i = 0; i < numSamples; i++)
+            {
+                float t = (float)i / sampleRate;
+                float white = UnityEngine.Random.value * 2f - 1f;
+                lp = Mathf.Lerp(lp, white, cutoff);
+                float swell = 0.75f + 0.25f * Mathf.Sin(2f * Mathf.PI * (t / duration) * 2f);
+                float distantChant = (Mathf.Sin(2f * Mathf.PI * baseChantFreq * t) + Mathf.Sin(2f * Mathf.PI * baseChantFreq * 1.25f * t)) * 0.045f * swell;
+                data[i] = Mathf.Clamp(lp * 0.55f * swell + distantChant, -1f, 1f);
             }
             AudioClip clip = AudioClip.Create(name, numSamples, 1, sampleRate, false);
             clip.SetData(data, 0);

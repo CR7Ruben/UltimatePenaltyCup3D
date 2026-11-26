@@ -33,17 +33,20 @@ namespace UltimatePenaltyCup.Gameplay
         [SerializeField] private Light[] floodlights;
         [SerializeField] private ParticleSystem confettiSystem;
 
-        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int MainTexStId = Shader.PropertyToID("_MainTex_ST");
 
         private StadiumType activeVenue = StadiumType.Cantera;
         private Vector2 bannerScrollOffset = Vector2.zero;
-        private bool bannerHasBaseMap = false;
+        private Vector4 bannerTilingOffset = new Vector4(6f, 1f, 0f, 0f);
+        private MaterialPropertyBlock bannerPropBlock;
+        private readonly System.Collections.Generic.List<Renderer> bannerRenderers = new System.Collections.Generic.List<Renderer>();
 
         private void Awake()
         {
             Instance = this;
             AutoFindComponents();
-            bannerHasBaseMap = bannerMaterial != null && bannerMaterial.HasProperty(BaseMapId);
+            CacheBannerRenderers();
         }
 
         private void Start()
@@ -85,13 +88,35 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void Update()
         {
-            if (bannerMaterial != null && activeVenue != StadiumType.Cantera)
+            if (bannerMaterial != null && activeVenue != StadiumType.Cantera && bannerRenderers.Count > 0)
             {
                 bannerScrollOffset.x = (bannerScrollOffset.x + Time.deltaTime * 0.06f) % 1f;
-                bannerMaterial.mainTextureOffset = bannerScrollOffset;
-                if (bannerHasBaseMap)
+                bannerTilingOffset.z = bannerScrollOffset.x;
+                if (bannerPropBlock == null) bannerPropBlock = new MaterialPropertyBlock();
+                bannerPropBlock.SetVector(BaseMapStId, bannerTilingOffset);
+                bannerPropBlock.SetVector(MainTexStId, bannerTilingOffset);
+                for (int i = 0; i < bannerRenderers.Count; i++)
                 {
-                    bannerMaterial.SetTextureOffset(BaseMapId, bannerScrollOffset);
+                    Renderer r = bannerRenderers[i];
+                    if (r != null && r.gameObject.activeInHierarchy)
+                    {
+                        r.SetPropertyBlock(bannerPropBlock);
+                    }
+                }
+            }
+        }
+
+        private void CacheBannerRenderers()
+        {
+            bannerRenderers.Clear();
+            if (bannerMaterial == null) return;
+            Vector2 scale = bannerMaterial.mainTextureScale;
+            bannerTilingOffset = new Vector4(Mathf.Max(0.1f, scale.x), Mathf.Max(0.1f, scale.y), 0f, 0f);
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r != null && r.sharedMaterial == bannerMaterial)
+                {
+                    bannerRenderers.Add(r);
                 }
             }
         }

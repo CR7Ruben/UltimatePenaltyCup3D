@@ -32,6 +32,8 @@ namespace UltimatePenaltyCup.SaveSystem
         public float masterVolume = 1.0f;
         public float musicVolume = 0.8f;
         public float sfxVolume = 0.9f;
+        public float crowdVolume = 0.85f;
+        public float uiVolume = 0.90f;
         public int resolutionIndex = -1;
         public bool isFullscreen = true;
         public int qualityLevel = 2;
