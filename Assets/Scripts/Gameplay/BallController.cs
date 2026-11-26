@@ -8,6 +8,7 @@ using UltimatePenaltyCup.Shop;
 
 namespace UltimatePenaltyCup.Gameplay
 {
+    [DefaultExecutionOrder(200)]
     [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(SphereCollider))]
     public class BallController : MonoBehaviour
@@ -31,7 +32,9 @@ namespace UltimatePenaltyCup.Gameplay
         public bool HasBeenShot { get; private set; } = false;
         public bool WasSavedByGoalkeeper { get; private set; } = false;
         public bool HitPost { get; private set; } = false;
-        public Vector3 InitialPosition { get; private set; } = new Vector3(0f, 0.11f, -11f);
+        public bool GoalScoredThisShot { get; private set; } = false;
+        public Vector3 InitialPosition { get; private set; } = new Vector3(0f, 0.112f, -11f);
+        public Vector3 PreviousPosition { get; private set; } = new Vector3(0f, 0.112f, -11f);
         public Vector3 Velocity => rb != null ? rb.linearVelocity : Vector3.zero;
 
         public event Action<Collision> OnBallCollision;
@@ -74,21 +77,41 @@ namespace UltimatePenaltyCup.Gameplay
         private void ConfigurePhysics()
         {
             rb.mass = 0.43f; // Official FIFA football mass ~430g
-            rb.linearDamping = 0.15f;
-            rb.angularDamping = 0.25f;
+            rb.linearDamping = 0.12f;
+            rb.angularDamping = 0.22f;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // PhysicMaterial for bounce
+            // PhysicMaterial for natural turf bounce & grip
             PhysicsMaterial ballPhys = new PhysicsMaterial("BallPhysicMaterial")
             {
-                bounciness = 0.65f,
+                bounciness = 0.60f,
                 bounceCombine = PhysicsMaterialCombine.Maximum,
-                dynamicFriction = 0.4f,
-                staticFriction = 0.45f,
+                dynamicFriction = 0.42f,
+                staticFriction = 0.46f,
                 frictionCombine = PhysicsMaterialCombine.Average
             };
             sphereCollider.material = ballPhys;
+        }
+
+        private void FixedUpdate()
+        {
+            if (rb == null) return;
+
+            PreviousPosition = transform.position;
+
+            if (!HasBeenShot || rb.isKinematic || WasSavedByGoalkeeper || GoalScoredThisShot) return;
+
+            // Gentle realistic Magnus curl proportional to spin x velocity
+            Vector3 vel = rb.linearVelocity;
+            if (vel.sqrMagnitude > 4f)
+            {
+                Vector3 magnus = Vector3.Cross(rb.angularVelocity, vel) * 0.0025f;
+                magnus.y = 0f;
+                magnus.x = Mathf.Clamp(magnus.x, -1.5f, 1.5f);
+                magnus.z = 0f;
+                rb.AddForce(magnus, ForceMode.Acceleration);
+            }
         }
 
         public void ApplyEquippedBallSkin()
@@ -148,7 +171,16 @@ namespace UltimatePenaltyCup.Gameplay
             if (HasBeenShot) return;
 
             HasBeenShot = true;
+            GoalScoredThisShot = false;
+
+            Vector3 launchPos = new Vector3(transform.position.x, Mathf.Max(transform.position.y, 0.115f), transform.position.z);
+            PreviousPosition = launchPos;
+            transform.position = launchPos;
+
             rb.isKinematic = false;
+            rb.position = launchPos;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            Physics.SyncTransforms();
             rb.linearVelocity = velocity;
             rb.angularVelocity = angularVelocity;
 
@@ -171,12 +203,20 @@ namespace UltimatePenaltyCup.Gameplay
             WasSavedByGoalkeeper = true;
         }
 
+        public void MarkGoalScored()
+        {
+            GoalScoredThisShot = true;
+        }
+
         public void ResetBall(Vector3 position)
         {
-            InitialPosition = position;
+            Vector3 safePos = new Vector3(position.x, Mathf.Max(position.y, 0.112f), position.z);
+            InitialPosition = safePos;
+            PreviousPosition = safePos;
             HasBeenShot = false;
             WasSavedByGoalkeeper = false;
             HitPost = false;
+            GoalScoredThisShot = false;
 
             if (rb != null)
             {
@@ -185,11 +225,14 @@ namespace UltimatePenaltyCup.Gameplay
                     rb.linearVelocity = Vector3.zero;
                     rb.angularVelocity = Vector3.zero;
                 }
+                rb.interpolation = RigidbodyInterpolation.None;
                 rb.isKinematic = true;
+                rb.position = safePos;
+                rb.rotation = Quaternion.identity;
             }
 
-            transform.position = position;
-            transform.rotation = Quaternion.identity;
+            transform.SetPositionAndRotation(safePos, Quaternion.identity);
+            Physics.SyncTransforms();
 
             if (trailRenderer != null)
             {

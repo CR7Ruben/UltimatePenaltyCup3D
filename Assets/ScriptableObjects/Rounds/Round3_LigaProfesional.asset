@@ -22,7 +22,7 @@ MonoBehaviour:
   stadiumTheme: 2
   goalkeeperName: "Mal\xE1gon"
   goalkeeperTypeTitle: Portero Profesional
-  reactionDelay: 0.15
-  moveSpeed: 6.6
-  diveSpeed: 8.4
-  errorProbability: 0.2
+  reactionDelay: 0.16
+  moveSpeed: 6.4
+  diveSpeed: 8
+  errorProbability: 0.22

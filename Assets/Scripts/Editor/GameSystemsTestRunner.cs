@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UltimatePenaltyCup.Core;
@@ -40,6 +41,8 @@ namespace UltimatePenaltyCup.Editor
             Test("11. Ball (0.22m) & Goal (7.32x2.44m) FIFA Proportions", TestWorldProportions, ref passed, ref total);
             Test("12. BuildSettings & Startup Scene Index (MainMenu=0, No SampleScene)", TestBuildSettingsOrder, ref passed, ref total);
             Test("13. MainMenu & MatchScene Wiring (GameManager, Camera, RoundEndUI)", TestSceneWiring, ref passed, ref total);
+            Test("14. PlayModeStartScene Enforces MainMenu Start With Debug Bypass", TestPlayModeStartSceneConfig, ref passed, ref total);
+            Test("15. Rendering & Performance Audit (GPU Instancing, No Floodlight Shadows, Batched Stadium)", TestPerformanceOptimizations, ref passed, ref total);
 
             Debug.Log("----------------------------------------------------------");
             Debug.Log($"TEST RESULTS: {passed} / {total} TESTS PASSED! ({(float)passed / total * 100f:F1}%)");
@@ -310,6 +313,59 @@ namespace UltimatePenaltyCup.Editor
             var endUI = UnityEngine.Object.FindFirstObjectByType<UltimatePenaltyCup.UI.RoundEndUI>(FindObjectsInactive.Include);
             Assert(endUI != null && endUI.gameObject.activeInHierarchy, "RoundEndUI must live on an always-active GameObject so Start() subscribes!");
             Assert(UnityEngine.Object.FindFirstObjectByType<StadiumController>() != null, "MatchScene must have StadiumController.");
+        }
+
+        private static void TestPlayModeStartSceneConfig()
+        {
+            PlayModeStartSceneConfig.ApplyPlayModeStartScene();
+            if (!PlayModeStartSceneConfig.IsDirectMatchAllowed)
+            {
+                Assert(EditorSceneManager.playModeStartScene != null && EditorSceneManager.playModeStartScene.name == "MainMenu",
+                    "playModeStartScene must default to MainMenu.unity when debug bypass is off.");
+            }
+        }
+
+        private static void TestPerformanceOptimizations()
+        {
+            string[] matPaths =
+            {
+                "Assets/Materials/Mat_Grass_Cantera.mat",
+                "Assets/Materials/Mat_Player_Kit.mat",
+                "Assets/Materials/Mat_Ball_Classic.mat",
+                "Assets/Materials/Mat_Stadium_Concrete.mat",
+                "Assets/Materials/Mat_Stadium_Stands.mat"
+            };
+            foreach (string p in matPaths)
+            {
+                Material m = AssetDatabase.LoadAssetAtPath<Material>(p);
+                Assert(m != null && m.enableInstancing, $"Material {p} must have GPU Instancing enabled.");
+            }
+
+            GameObject stadium = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/StadiumEnvironment.prefab");
+            Assert(stadium != null, "StadiumEnvironment.prefab must exist.");
+
+            Light[] lights = stadium.GetComponentsInChildren<Light>(true);
+            foreach (var l in lights)
+            {
+                Assert(l.shadows == LightShadows.None, $"Floodlight {l.name} must have shadows disabled for 60 FPS performance.");
+            }
+
+            string[] venueNames = { "Venue_Cantera", "Venue_Night", "Venue_Professional", "Venue_WorldCup" };
+            foreach (string vName in venueNames)
+            {
+                Transform v = stadium.transform.Find(vName);
+                Assert(v != null, $"Missing venue {vName}.");
+                bool hasBatch = false;
+                for (int i = 0; i < v.childCount; i++)
+                {
+                    if (v.GetChild(i).name.StartsWith("StaticBatch_"))
+                    {
+                        hasBatch = true;
+                        break;
+                    }
+                }
+                Assert(hasBatch, $"Venue {vName} must contain combined StaticBatch meshes.");
+            }
         }
 
         private static void Assert(bool condition, string message)

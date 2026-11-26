@@ -97,7 +97,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 54d9aab2b4e324c4b8e5afad96a6c2b6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Goalkeeper.GoalkeeperAI
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Goalkeeper.GoalkeeperAI
   reactionDelay: 0.24
   moveSpeed: 4.2
   diveSpeed: 5.4

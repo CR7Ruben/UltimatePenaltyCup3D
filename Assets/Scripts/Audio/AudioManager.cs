@@ -67,6 +67,10 @@ namespace UltimatePenaltyCup.Audio
         private AudioClip procBgmVictory;
         private AudioClip procBgmDefeat;
 
+        private static readonly float[] UnlockNotes = { 440f, 554.37f, 659.25f, 880f }; // A4, C#5, E5, A5
+        private static readonly float[] VictoryMelody = { 523.25f, 659.25f, 783.99f, 1046.50f };
+        private static readonly float[] DefeatMelody = { 440f, 392f, 349.23f, 329.63f };
+
         public float MasterVolume { get; private set; } = 1.0f;
         public float MusicVolume { get; private set; } = 0.8f;
         public float SfxVolume { get; private set; } = 0.9f;
@@ -286,11 +290,10 @@ namespace UltimatePenaltyCup.Audio
             procUnlock = CreateSyntheticClip("Proc_Unlock", 0.8f, sampleRate, (t, dur) =>
             {
                 float step = Mathf.Floor(t / 0.18f);
-                float[] notes = { 440f, 554.37f, 659.25f, 880f }; // A4, C#5, E5, A5
-                int idx = Mathf.Clamp((int)step, 0, notes.Length - 1);
+                int idx = Mathf.Clamp((int)step, 0, UnlockNotes.Length - 1);
                 float noteT = t - step * 0.18f;
                 float env = Mathf.Clamp01(1f - (noteT / 0.18f));
-                return Mathf.Sin(2f * Mathf.PI * notes[idx] * t) * env * 0.8f;
+                return Mathf.Sin(2f * Mathf.PI * UnlockNotes[idx] * t) * env * 0.8f;
             });
 
             // 6. Button Click: Subtle high tick
@@ -360,21 +363,19 @@ namespace UltimatePenaltyCup.Audio
             // 10. BGM Victory: Fanfare loop
             procBgmVictory = CreateSyntheticLoop("Proc_BgmVictory", 3.0f, sampleRate, (t) =>
             {
-                float[] melody = { 523.25f, 659.25f, 783.99f, 1046.50f };
-                int idx = (int)(t / 0.75f) % melody.Length;
+                int idx = (int)(t / 0.75f) % VictoryMelody.Length;
                 float noteT = (t % 0.75f);
                 float env = Mathf.Clamp01(1f - noteT / 0.75f);
-                return Mathf.Sin(2f * Mathf.PI * melody[idx] * t) * env * 0.4f;
+                return Mathf.Sin(2f * Mathf.PI * VictoryMelody[idx] * t) * env * 0.4f;
             });
 
             // 11. BGM Defeat: Minor cadence
             procBgmDefeat = CreateSyntheticLoop("Proc_BgmDefeat", 3.0f, sampleRate, (t) =>
             {
-                float[] melody = { 440f, 392f, 349.23f, 329.63f };
-                int idx = (int)(t / 0.75f) % melody.Length;
+                int idx = (int)(t / 0.75f) % DefeatMelody.Length;
                 float noteT = (t % 0.75f);
                 float env = Mathf.Clamp01(1f - noteT / 0.75f);
-                return Mathf.Sin(2f * Mathf.PI * melody[idx] * t) * env * 0.35f;
+                return Mathf.Sin(2f * Mathf.PI * DefeatMelody[idx] * t) * env * 0.35f;
             });
         }
 

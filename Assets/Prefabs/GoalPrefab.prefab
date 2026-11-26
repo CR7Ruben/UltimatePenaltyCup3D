@@ -959,7 +959,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1edc45b3b55e3ea4a9a73771c98574fa, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Gameplay.GoalNetRipple
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Gameplay.GoalNetRipple
 --- !u!1 &5941120204670579531
 GameObject:
   m_ObjectHideFlags: 0
@@ -1025,7 +1025,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a036537aac713b542a59fdecea62164f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Gameplay.GoalDetector
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Gameplay.GoalDetector
   goalHalfWidth: 3.66
   goalHeight: 2.44
   cornerThreshold: 0.9

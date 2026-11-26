@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UltimatePenaltyCup.SaveSystem;
 using UltimatePenaltyCup.Levels;
@@ -22,6 +23,11 @@ namespace UltimatePenaltyCup.Core
 
         public event Action<int> OnRoundSelected;
 
+        private int perfFrameCount = 0;
+        private float perfAccumulatedTime = 0f;
+        private bool perfLoggedForCurrentScene = false;
+        private string perfSceneName = "";
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -32,6 +38,8 @@ namespace UltimatePenaltyCup.Core
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 1;
             EnsureCoreManagers();
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
@@ -46,10 +54,80 @@ namespace UltimatePenaltyCup.Core
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            Time.timeScale = 1f;
+            DeduplicateSceneSingletons();
+
+            perfSceneName = scene.name;
+            perfFrameCount = 0;
+            perfAccumulatedTime = 0f;
+            perfLoggedForCurrentScene = false;
+
             if (scene.name == SCENE_MAIN_MENU)
             {
-                Time.timeScale = 1f;
                 GameStateManager.Instance?.ChangeState(GameState.MainMenu);
+            }
+        }
+
+        private void Update()
+        {
+            if (perfLoggedForCurrentScene) return;
+            float dt = Time.unscaledDeltaTime;
+            if (dt > 0.00001f && dt < 0.25f)
+            {
+                perfFrameCount++;
+                perfAccumulatedTime += dt;
+                if (perfFrameCount >= 120)
+                {
+                    perfLoggedForCurrentScene = true;
+                    float avgDt = perfAccumulatedTime / perfFrameCount;
+                    float fps = 1f / Mathf.Max(0.00001f, avgDt);
+                    float avgMs = avgDt * 1000f;
+                    string qualName = QualitySettings.names != null && QualitySettings.GetQualityLevel() < QualitySettings.names.Length
+                        ? QualitySettings.names[QualitySettings.GetQualityLevel()]
+                        : QualitySettings.GetQualityLevel().ToString();
+                    Debug.Log($"[Performance] Scene={perfSceneName} Res={Screen.width}x{Screen.height} AvgFPS={fps:F1} AvgFrameMs={avgMs:F2} Quality={qualName}");
+                }
+            }
+        }
+
+        private void DeduplicateSceneSingletons()
+        {
+            EventSystem[] eventSystems = FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (eventSystems.Length > 1)
+            {
+                EventSystem keep = null;
+                for (int i = 0; i < eventSystems.Length; i++)
+                {
+                    if (eventSystems[i].gameObject.activeInHierarchy)
+                    {
+                        keep = eventSystems[i];
+                        break;
+                    }
+                }
+                if (keep == null) keep = eventSystems[0];
+
+                for (int i = 0; i < eventSystems.Length; i++)
+                {
+                    if (eventSystems[i] != keep)
+                    {
+                        Destroy(eventSystems[i].gameObject);
+                    }
+                }
+            }
+
+            AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            if (listeners.Length > 1)
+            {
+                AudioListener keepListener = Camera.main != null ? Camera.main.GetComponent<AudioListener>() : null;
+                if (keepListener == null) keepListener = listeners[0];
+
+                for (int i = 0; i < listeners.Length; i++)
+                {
+                    if (listeners[i] != keepListener)
+                    {
+                        listeners[i].enabled = false;
+                    }
+                }
             }
         }
 

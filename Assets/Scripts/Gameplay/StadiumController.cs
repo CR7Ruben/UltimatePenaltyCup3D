@@ -31,13 +31,17 @@ namespace UltimatePenaltyCup.Gameplay
         [SerializeField] private Light[] floodlights;
         [SerializeField] private ParticleSystem confettiSystem;
 
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+
         private StadiumType activeVenue = StadiumType.Cantera;
         private Vector2 bannerScrollOffset = Vector2.zero;
+        private bool bannerHasBaseMap = false;
 
         private void Awake()
         {
             Instance = this;
             AutoFindComponents();
+            bannerHasBaseMap = bannerMaterial != null && bannerMaterial.HasProperty(BaseMapId);
         }
 
         private void Start()
@@ -71,9 +75,9 @@ namespace UltimatePenaltyCup.Gameplay
             {
                 bannerScrollOffset.x = (bannerScrollOffset.x + Time.deltaTime * 0.06f) % 1f;
                 bannerMaterial.mainTextureOffset = bannerScrollOffset;
-                if (bannerMaterial.HasProperty("_BaseMap"))
+                if (bannerHasBaseMap)
                 {
-                    bannerMaterial.SetTextureOffset("_BaseMap", bannerScrollOffset);
+                    bannerMaterial.SetTextureOffset(BaseMapId, bannerScrollOffset);
                 }
             }
         }

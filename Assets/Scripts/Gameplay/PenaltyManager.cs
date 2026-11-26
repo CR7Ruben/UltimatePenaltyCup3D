@@ -54,12 +54,21 @@ namespace UltimatePenaltyCup.Gameplay
         public bool IsRoundOver { get; private set; } = false;
         public bool CanAcceptShotInput => !IsRoundOver && !IsEvaluatingShot && CurrentState == MatchAttemptState.Aiming && Time.timeScale > 0f;
 
+        /// <summary>
+        /// Configurable resolution delays (used by automated Play Mode test benchmarks without altering physics).
+        /// </summary>
+        public float PostAttemptDelay { get; set; } = 1.60f;
+        public float SaveConfirmDelay { get; set; } = 0.22f;
+        public float ShotTimeoutDuration { get; set; } = 2.50f;
+
         private bool hasEvaluatedCurrentShot = false;
         private bool hasFinishedRound = false;
         private bool lastShotWasHighPower = false;
         private bool lastShotHitPost = false;
         private Coroutine shotTimeoutCoroutine;
         private Coroutine saveConfirmCoroutine;
+        private Coroutine postAttemptCoroutine;
+        private readonly WaitForSeconds waitPollStep = new WaitForSeconds(0.08f);
         private readonly List<string> matchUnlockedAchievements = new List<string>();
 
         public event Action<int, int> OnAttemptStarted; // (attempt, max)
@@ -84,6 +93,7 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void OnDestroy()
         {
+            StopAllCoroutines();
             if (GoalDetector.Instance != null)
             {
                 GoalDetector.Instance.OnGoalScored -= HandleGoalDetected;
@@ -139,7 +149,7 @@ namespace UltimatePenaltyCup.Gameplay
             if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
             {
                 SaveManager.Instance.CurrentData.totalMatchesPlayed++;
-                SaveManager.Instance.Save();
+                SaveManager.Instance.Save(flushToDisk: false);
             }
 
             ScoreManager.Instance?.ResetMatchScore();
@@ -212,7 +222,28 @@ namespace UltimatePenaltyCup.Gameplay
 
         private IEnumerator ShotTimeoutRoutine()
         {
-            yield return new WaitForSeconds(2.8f);
+            float elapsed = 0f;
+            while (elapsed < ShotTimeoutDuration)
+            {
+                yield return waitPollStep;
+                elapsed += 0.08f;
+
+                if (hasEvaluatedCurrentShot || !IsEvaluatingShot) yield break;
+
+                BallController ball = BallController.Instance;
+                if (elapsed > 0.60f && ball != null)
+                {
+                    Vector3 pos = ball.transform.position;
+                    bool outOfBounds = pos.z > 3.5f || Mathf.Abs(pos.x) > 6.5f || pos.y > 5.8f;
+                    bool bouncedBackOffPost = ball.HitPost && pos.z < -2.2f && ball.Velocity.z < -0.5f;
+                    bool stalledOnPitch = elapsed > 1.30f && ball.Velocity.sqrMagnitude < 0.35f;
+
+                    if (outOfBounds || bouncedBackOffPost || stalledOnPitch)
+                    {
+                        break;
+                    }
+                }
+            }
 
             if (!hasEvaluatedCurrentShot && IsEvaluatingShot)
             {
@@ -249,7 +280,7 @@ namespace UltimatePenaltyCup.Gameplay
 
         private IEnumerator CheckSaveConfirmationRoutine()
         {
-            yield return new WaitForSeconds(0.28f);
+            yield return new WaitForSeconds(SaveConfirmDelay);
             if (!hasEvaluatedCurrentShot && IsEvaluatingShot)
             {
                 EvaluateShot(ShotResult.Saved, false, false, "¡ATAJADA!");
@@ -272,6 +303,11 @@ namespace UltimatePenaltyCup.Gameplay
             {
                 StopCoroutine(saveConfirmCoroutine);
                 saveConfirmCoroutine = null;
+            }
+            if (postAttemptCoroutine != null)
+            {
+                StopCoroutine(postAttemptCoroutine);
+                postAttemptCoroutine = null;
             }
 
             PlayerShooter.Instance?.SetInputLocked(true);
@@ -298,7 +334,7 @@ namespace UltimatePenaltyCup.Gameplay
                     {
                         SaveManager.Instance.CurrentData.bestGoalStreak = ScoreManager.Instance.CurrentStreak;
                     }
-                    SaveManager.Instance.Save();
+                    SaveManager.Instance.Save(flushToDisk: false);
                 }
 
                 AchievementManager.Instance?.CheckGoalScored(
@@ -326,12 +362,12 @@ namespace UltimatePenaltyCup.Gameplay
             OnAttemptFinished?.Invoke(displayType, scoreResult, message);
             OnStatsUpdated?.Invoke(GoalsScored, AttemptsUsed, ScoreManager.Instance != null ? ScoreManager.Instance.CurrentMatchScore : 0);
 
-            StartCoroutine(PostAttemptDelayRoutine());
+            postAttemptCoroutine = StartCoroutine(PostAttemptDelayRoutine());
         }
 
         private IEnumerator PostAttemptDelayRoutine()
         {
-            yield return new WaitForSeconds(1.85f);
+            yield return new WaitForSeconds(PostAttemptDelay);
 
             int remainingAttempts = maxAttempts - AttemptsUsed;
             bool goalTargetReached = GoalsScored >= requiredGoals;

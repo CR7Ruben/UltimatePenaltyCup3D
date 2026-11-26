@@ -23,8 +23,8 @@ namespace UltimatePenaltyCup.Player
         [SerializeField] private Vector2 aimBoundsY = new Vector2(0.15f, 2.95f);
 
         [Header("Power Parameters")]
-        [SerializeField] private float powerChargeRate = 1.25f;
-        [SerializeField] private float minShotSpeed = 16.5f;
+        [SerializeField] private float powerChargeRate = 1.15f;
+        [SerializeField] private float minShotSpeed = 17.0f;
         [SerializeField] private float maxShotSpeed = 30.5f;
         [SerializeField] private float perfectZoneMin = 0.68f;
         [SerializeField] private float perfectZoneMax = 0.88f;
@@ -38,8 +38,15 @@ namespace UltimatePenaltyCup.Player
         public event Action<float, bool, bool> OnPowerUpdated; // power, isPerfect, isOverpower
         public event Action<Vector3, float, bool> OnShotExecuted; // target, power, isHighPower
 
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
         private bool powerAscending = true;
         private float reticlePulseTimer = 0f;
+        private float inputCooldownTimer = 0f;
+        private Vector3 rawAimTarget;
+        private MaterialPropertyBlock reticlePropBlock;
+        private readonly Vector3[] trajectoryPoints = new Vector3[14];
 
         private void Awake()
         {
@@ -47,16 +54,23 @@ namespace UltimatePenaltyCup.Player
             if (mainCamera == null) mainCamera = Camera.main;
             if (aimReticle != null && aimReticleRenderer == null)
                 aimReticleRenderer = aimReticle.GetComponent<Renderer>();
+            reticlePropBlock = new MaterialPropertyBlock();
         }
 
         private void Start()
         {
-            CurrentAimTarget = new Vector3(0f, 1.15f, goalPlaneZ);
+            rawAimTarget = new Vector3(0f, 1.15f, goalPlaneZ);
+            CurrentAimTarget = rawAimTarget;
             if (aimReticle != null) aimReticle.position = CurrentAimTarget;
         }
 
         private void Update()
         {
+            if (inputCooldownTimer > 0f)
+            {
+                inputCooldownTimer = Mathf.Max(0f, inputCooldownTimer - Time.unscaledDeltaTime);
+            }
+
             if (Time.timeScale <= 0f) return;
             if (PenaltyManager.Instance != null && !PenaltyManager.Instance.CanAcceptShotInput)
             {
@@ -95,12 +109,17 @@ namespace UltimatePenaltyCup.Player
                 Vector3 hitPoint = ray.GetPoint(enterDist);
                 float clampedX = Mathf.Clamp(hitPoint.x, aimBoundsX.x, aimBoundsX.y);
                 float clampedY = Mathf.Clamp(hitPoint.y, aimBoundsY.x, aimBoundsY.y);
-                CurrentAimTarget = new Vector3(clampedX, clampedY, goalPlaneZ);
+                rawAimTarget = new Vector3(clampedX, clampedY, goalPlaneZ);
             }
+
+            float aimBlend = 1f - Mathf.Exp(-24f * Time.deltaTime);
+            CurrentAimTarget = Vector3.Lerp(CurrentAimTarget, rawAimTarget, aimBlend);
         }
 
         private void UpdatePowerCharge()
         {
+            if (inputCooldownTimer > 0f && !IsCharging) return;
+
             // Ignore clicks over UI (like Pause button)
             if (!IsCharging && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
@@ -120,6 +139,8 @@ namespace UltimatePenaltyCup.Player
                 if (!IsCharging)
                 {
                     IsCharging = true;
+                    CurrentPower = 0.22f;
+                    powerAscending = true;
                     PenaltyManager.Instance?.SetChargingState();
                 }
 
@@ -135,9 +156,9 @@ namespace UltimatePenaltyCup.Player
                 else
                 {
                     CurrentPower -= Time.deltaTime * powerChargeRate;
-                    if (CurrentPower <= 0.12f)
+                    if (CurrentPower <= 0.18f)
                     {
-                        CurrentPower = 0.12f;
+                        CurrentPower = 0.18f;
                         powerAscending = true;
                     }
                 }
@@ -168,13 +189,15 @@ namespace UltimatePenaltyCup.Player
 
                 if (IsCharging && CurrentPower > 0.92f)
                 {
-                    // Slight accuracy jitter & expansion when overcharging
-                    baseScale += 0.20f;
+                    // Slight accuracy expansion when overcharging
+                    baseScale += 0.18f;
                 }
                 aimReticle.localScale = Vector3.one * baseScale;
 
                 if (aimReticleRenderer != null)
                 {
+                    if (reticlePropBlock == null) reticlePropBlock = new MaterialPropertyBlock();
+
                     Color col = new Color(0.08f, 0.55f, 1.0f, 0.95f); // Electric blue default
                     if (IsCharging)
                     {
@@ -182,9 +205,10 @@ namespace UltimatePenaltyCup.Player
                         else if (CurrentPower >= perfectZoneMin && CurrentPower <= perfectZoneMax) col = new Color(1.0f, 0.80f, 0.15f, 1.0f); // Gold sweet spot
                         else col = new Color(0.15f, 0.85f, 0.45f, 0.95f); // Green good
                     }
-                    aimReticleRenderer.material.color = col;
-                    if (aimReticleRenderer.material.HasProperty("_BaseColor"))
-                        aimReticleRenderer.material.SetColor("_BaseColor", col);
+                    aimReticleRenderer.GetPropertyBlock(reticlePropBlock);
+                    reticlePropBlock.SetColor(ColorId, col);
+                    reticlePropBlock.SetColor(BaseColorId, col);
+                    aimReticleRenderer.SetPropertyBlock(reticlePropBlock);
                 }
             }
 
@@ -192,22 +216,25 @@ namespace UltimatePenaltyCup.Player
             {
                 trajectoryLine.gameObject.SetActive(true);
                 Vector3 startPos = BallController.Instance.transform.position;
-                int count = trajectoryLine.positionCount;
-                if (count < 2)
+                int count = trajectoryPoints.Length;
+                if (trajectoryLine.positionCount != count)
                 {
-                    count = 14;
                     trajectoryLine.positionCount = count;
                 }
 
-                Vector3 ctrl = (startPos + CurrentAimTarget) * 0.5f + Vector3.up * Mathf.Lerp(0.3f, 0.95f, CurrentPower);
+                float previewPower = IsCharging ? Mathf.Clamp(CurrentPower, 0.22f, 1f) : 0.65f;
+                Vector3 initialVel = ComputeCompensatedLaunchVelocity(startPos, CurrentAimTarget, previewPower, out float flightTime);
+                float curlSign = -Mathf.Sign(CurrentAimTarget.x) * Mathf.Abs(CurrentAimTarget.x) * 0.03f * previewPower;
+
                 for (int i = 0; i < count; i++)
                 {
                     float u = i / (float)(count - 1);
-                    Vector3 p = Mathf.Pow(1f - u, 2f) * startPos
-                              + 2f * (1f - u) * u * ctrl
-                              + Mathf.Pow(u, 2f) * CurrentAimTarget;
-                    trajectoryLine.SetPosition(i, p);
+                    float elapsed = u * flightTime;
+                    Vector3 p = startPos + initialVel * elapsed + 0.5f * Physics.gravity * (elapsed * elapsed);
+                    p.x += curlSign * Mathf.Sin(u * Mathf.PI);
+                    trajectoryPoints[i] = p;
                 }
+                trajectoryLine.SetPositions(trajectoryPoints);
             }
         }
 
@@ -238,6 +265,57 @@ namespace UltimatePenaltyCup.Player
             }
         }
 
+        /// <summary>
+        /// Fires a real physics shot through the full PlayerShooter -> BallController -> GoalkeeperAI -> GoalDetector pipeline.
+        /// Used by automated Play Mode simulation tests.
+        /// </summary>
+        public void ExecuteAutomatedShot(Vector3 targetOnGoalPlane, float normalizedPower, bool skipRunUp = false)
+        {
+            CanShoot = false;
+            IsCharging = false;
+            CurrentAimTarget = targetOnGoalPlane;
+            rawAimTarget = targetOnGoalPlane;
+            CurrentPower = Mathf.Clamp(normalizedPower, 0.22f, 1.0f);
+
+            OnPowerChanged?.Invoke(0f);
+            OnPowerUpdated?.Invoke(0f, false, false);
+
+            if (aimReticle != null) aimReticle.gameObject.SetActive(false);
+            if (trajectoryLine != null) trajectoryLine.gameObject.SetActive(false);
+
+            PenaltyManager.Instance?.OnShotKickingStarted();
+
+            Vector3 ballPos = BallController.Instance != null ? BallController.Instance.transform.position : new Vector3(0f, 0.11f, -11f);
+
+            if (!skipRunUp && PlayerController.Instance != null)
+            {
+                PlayerController.Instance.PlayKickAnimation(ballPos, () => PerformPhysicsKick(ballPos));
+            }
+            else
+            {
+                PerformPhysicsKick(ballPos);
+            }
+        }
+
+        private Vector3 ComputeCompensatedLaunchVelocity(Vector3 ballPos, Vector3 target, float normalizedPower, out float timeOfFlight)
+        {
+            float speed = Mathf.Lerp(minShotSpeed, maxShotSpeed, Mathf.Clamp01(normalizedPower));
+            Vector3 delta = target - ballPos;
+            Vector3 dir = delta.normalized;
+
+            float distanceZ = Mathf.Abs(goalPlaneZ - ballPos.z);
+            float forwardSpeed = Mathf.Max(8f, speed * dir.z);
+            timeOfFlight = distanceZ / forwardSpeed;
+
+            // Slight linear damping compensation (~4.5%) so the ball lands accurately on reticle
+            const float dragComp = 1.045f;
+            float vx = (delta.x / timeOfFlight) * dragComp;
+            float vz = (delta.z / timeOfFlight) * dragComp;
+            float vy = (delta.y + 0.5f * 9.81f * timeOfFlight * timeOfFlight) / timeOfFlight;
+
+            return new Vector3(vx, vy, vz);
+        }
+
         private void PerformPhysicsKick(Vector3 ballPos)
         {
             if (BallController.Instance == null) return;
@@ -245,36 +323,23 @@ namespace UltimatePenaltyCup.Player
             bool isPerfect = CurrentPower >= perfectZoneMin && CurrentPower <= perfectZoneMax;
             bool isOver = CurrentPower > 0.92f;
 
-            // Slight natural spread unless in Sweet Spot
+            // Distinct accuracy & spread by power zone
             Vector3 target = CurrentAimTarget;
             if (isOver)
             {
-                target.x += UnityEngine.Random.Range(-0.55f, 0.55f);
-                target.y += UnityEngine.Random.Range(0.25f, 0.85f);
+                target.x += UnityEngine.Random.Range(-0.48f, 0.48f);
+                target.y += UnityEngine.Random.Range(0.18f, 0.68f);
             }
             else if (!isPerfect)
             {
-                target.x += UnityEngine.Random.Range(-0.18f, 0.18f);
-                target.y += UnityEngine.Random.Range(-0.10f, 0.14f);
+                target.x += UnityEngine.Random.Range(-0.14f, 0.14f);
+                target.y += UnityEngine.Random.Range(-0.08f, 0.10f);
             }
 
-            float speed = Mathf.Lerp(minShotSpeed, maxShotSpeed, CurrentPower);
-            Vector3 delta = target - ballPos;
-            Vector3 dir = delta.normalized;
+            Vector3 velocity = ComputeCompensatedLaunchVelocity(ballPos, target, CurrentPower, out _);
 
-            float distanceZ = Mathf.Abs(goalPlaneZ - ballPos.z);
-            float forwardSpeed = Mathf.Max(8f, speed * dir.z);
-            float timeOfFlight = distanceZ / forwardSpeed;
-
-            // Exact vertical velocity to compensate gravity so ball arrives cleanly at target.y
-            float vx = delta.x / timeOfFlight;
-            float vz = delta.z / timeOfFlight;
-            float vy = (delta.y + 0.5f * 9.81f * timeOfFlight * timeOfFlight) / timeOfFlight;
-
-            Vector3 velocity = new Vector3(vx, vy, vz);
-
-            float spinY = target.x * 12f;
-            Vector3 torque = new Vector3(UnityEngine.Random.Range(-4f, 4f), spinY, UnityEngine.Random.Range(-4f, 4f));
+            float spinY = -target.x * 5.0f;
+            Vector3 torque = new Vector3(0f, spinY, 0f);
 
             bool isHighPower = CurrentPower >= 0.82f;
 
@@ -305,6 +370,7 @@ namespace UltimatePenaltyCup.Player
             IsCharging = false;
             CurrentPower = 0f;
             powerAscending = true;
+            inputCooldownTimer = 0.20f;
             OnPowerChanged?.Invoke(0f);
             OnPowerUpdated?.Invoke(0f, false, false);
 

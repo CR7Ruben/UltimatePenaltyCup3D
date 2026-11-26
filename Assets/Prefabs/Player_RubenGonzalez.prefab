@@ -800,7 +800,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e3b5dab997295149997674d86c937a5, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Player.PlayerController
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Player.PlayerController
   moveSpeed: 3.8
   movementBoundsX: {x: -2.2, y: 2.2}
   movementBoundsZ: {x: -14.2, y: -12.1}
@@ -829,7 +829,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 75d40c4deb0c8054b906f2fbdd377d10, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Player.PlayerShooter
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Player.PlayerShooter
   mainCamera: {fileID: 0}
   aimReticle: {fileID: 8583028704286490853}
   aimReticleRenderer: {fileID: 5298925089114361079}
@@ -837,8 +837,8 @@ MonoBehaviour:
   goalPlaneZ: 0
   aimBoundsX: {x: -4.25, y: 4.25}
   aimBoundsY: {x: 0.15, y: 2.95}
-  powerChargeRate: 1.25
-  minShotSpeed: 16.5
+  powerChargeRate: 1.15
+  minShotSpeed: 17
   maxShotSpeed: 30.5
   perfectZoneMin: 0.68
   perfectZoneMax: 0.88

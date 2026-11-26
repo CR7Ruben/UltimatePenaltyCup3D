@@ -27,6 +27,18 @@ namespace UltimatePenaltyCup.Gameplay
             CacheNetMeshes();
         }
 
+        private void OnDestroy()
+        {
+            for (int m = 0; m < netMeshes.Count; m++)
+            {
+                if (netMeshes[m].mesh != null)
+                {
+                    Destroy(netMeshes[m].mesh);
+                }
+            }
+            netMeshes.Clear();
+        }
+
         private void CacheNetMeshes()
         {
             netMeshes.Clear();
@@ -37,6 +49,7 @@ namespace UltimatePenaltyCup.Gameplay
                 if (!mf.gameObject.name.StartsWith("Net")) continue;
 
                 Mesh runtimeMesh = Instantiate(mf.sharedMesh);
+                runtimeMesh.MarkDynamic();
                 mf.sharedMesh = runtimeMesh;
                 Vector3[] baseVerts = runtimeMesh.vertices;
                 Vector3[] currVerts = new Vector3[baseVerts.Length];
@@ -74,14 +87,22 @@ namespace UltimatePenaltyCup.Gameplay
                 var data = netMeshes[m];
                 if (data.mesh == null || data.transform == null) continue;
 
+                Vector3 worldCenter = data.transform.TransformPoint(data.mesh.bounds.center);
+                if ((worldCenter - impactWorldPos).sqrMagnitude > 20.25f) continue; // > 4.5m away
+
                 Vector3 localImpact = data.transform.InverseTransformPoint(impactWorldPos);
                 Vector3 localDir = data.transform.InverseTransformDirection(impactDir);
 
                 for (int i = 0; i < data.baseVertices.Length; i++)
                 {
                     Vector3 v = data.baseVertices[i];
-                    float dist = Vector3.Distance(v, localImpact);
-                    float falloff = Mathf.Exp(-dist * 0.65f);
+                    float distSq = (v - localImpact).sqrMagnitude;
+                    if (distSq > 16f)
+                    {
+                        data.currentVertices[i] = v;
+                        continue;
+                    }
+                    float falloff = Mathf.Exp(-Mathf.Sqrt(distSq) * 0.65f);
                     float disp = rippleIntensity * falloff * (0.65f + 0.35f * waveOsc);
                     data.currentVertices[i] = v + localDir * disp;
                 }

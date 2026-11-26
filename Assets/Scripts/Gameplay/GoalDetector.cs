@@ -34,16 +34,48 @@ namespace UltimatePenaltyCup.Gameplay
             CheckGoalCross(other);
         }
 
+        private void FixedUpdate()
+        {
+            BallController ball = BallController.Instance;
+            if (ball == null || !ball.HasBeenShot || ball.WasSavedByGoalkeeper || ball.GoalScoredThisShot) return;
+
+            Vector3 prevPos = ball.PreviousPosition;
+            Vector3 currPos = ball.transform.position;
+
+            // Swept goal-line crossing backup check to guarantee zero tunneling on high-velocity shots
+            if (prevPos.z <= 0.08f && currPos.z > 0.08f)
+            {
+                float denom = currPos.z - prevPos.z;
+                float t = denom > 0.0001f ? Mathf.Clamp01((0.08f - prevPos.z) / denom) : 1f;
+                Vector3 crossPoint = Vector3.Lerp(prevPos, currPos, t);
+
+                if (Mathf.Abs(crossPoint.x) <= goalHalfWidth - 0.05f &&
+                    crossPoint.y <= goalHeight - 0.05f &&
+                    crossPoint.y >= -0.15f)
+                {
+                    ScoreGoal(ball, currPos);
+                }
+            }
+        }
+
         private void CheckGoalCross(Collider other)
         {
             BallController ball = other.GetComponent<BallController>();
-            if (ball == null || !ball.HasBeenShot || ball.WasSavedByGoalkeeper) return;
+            if (ball == null || !ball.HasBeenShot || ball.WasSavedByGoalkeeper || ball.GoalScoredThisShot) return;
 
             Vector3 entryPoint = ball.transform.position;
             // Ball must have crossed the goal line cleanly inside the frame
-            if (entryPoint.z < 0.08f) return;
-            if (Mathf.Abs(entryPoint.x) > goalHalfWidth - 0.06f) return;
-            if (entryPoint.y > goalHeight - 0.06f || entryPoint.y < -0.1f) return;
+            if (entryPoint.z < 0.06f) return;
+            if (Mathf.Abs(entryPoint.x) > goalHalfWidth - 0.05f) return;
+            if (entryPoint.y > goalHeight - 0.05f || entryPoint.y < -0.15f) return;
+
+            ScoreGoal(ball, entryPoint);
+        }
+
+        private void ScoreGoal(BallController ball, Vector3 entryPoint)
+        {
+            if (ball.GoalScoredThisShot) return;
+            ball.MarkGoalScored();
 
             Vector3 localPoint = transform.InverseTransformPoint(entryPoint);
             bool isCorner = CheckIfCornerOrPrecision(localPoint);

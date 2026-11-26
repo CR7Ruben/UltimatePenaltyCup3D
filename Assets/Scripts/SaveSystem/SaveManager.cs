@@ -57,7 +57,7 @@ namespace UltimatePenaltyCup.SaveSystem
             OnDataLoaded?.Invoke(CurrentData);
         }
 
-        public void Save()
+        public void Save(bool flushToDisk = true)
         {
             if (CurrentData == null || suppressDiskSaveForTests) return;
 
@@ -65,12 +65,31 @@ namespace UltimatePenaltyCup.SaveSystem
             {
                 string json = JsonUtility.ToJson(CurrentData, true);
                 PlayerPrefs.SetString(SAVE_KEY, json);
-                PlayerPrefs.Save();
+                if (flushToDisk)
+                {
+                    PlayerPrefs.Save();
+                }
                 OnDataSaved?.Invoke(CurrentData);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[SaveManager] Error saving data: {ex.Message}");
+            }
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (pauseStatus && !suppressDiskSaveForTests && CurrentData != null)
+            {
+                PlayerPrefs.Save();
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (!suppressDiskSaveForTests && CurrentData != null)
+            {
+                Save(flushToDisk: true);
             }
         }
 

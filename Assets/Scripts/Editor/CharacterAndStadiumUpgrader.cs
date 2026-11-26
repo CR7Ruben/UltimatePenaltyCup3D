@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEditor;
 using UltimatePenaltyCup.Player;
 using UltimatePenaltyCup.Goalkeeper;
@@ -282,25 +284,29 @@ namespace UltimatePenaltyCup.Editor
             pitch.GetComponent<Renderer>().sharedMaterial = matGrassCantera;
 
             // Pitch Surround Apron (track/runoff concrete border)
-            CreateBox("Runoff_Apron", root.transform, new Vector3(0f, -0.08f, -5f), new Vector3(110f, 0.08f, 140f), matConcrete, false);
+            GameObject apron = CreateBox("Runoff_Apron", root.transform, new Vector3(0f, -0.08f, -5f), new Vector3(110f, 0.08f, 140f), matConcrete, false);
+            apron.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
 
             // ========== REGULATION WHITE LINES ==========
+            GameObject linesContainer = new GameObject("Pitch_Lines");
+            linesContainer.transform.SetParent(root.transform, false);
+
             const float lineY = 0.004f;
             const float lw = 0.12f;
             // Penalty Box: 40.32m wide x 16.5m deep
-            CreateBox("Line_PenaltyBox_Back", root.transform, new Vector3(0f, lineY, -16.5f), new Vector3(40.32f, 0.008f, lw), matLines, false);
-            CreateBox("Line_PenaltyBox_L", root.transform, new Vector3(-20.16f, lineY, -8.25f), new Vector3(lw, 0.008f, 16.5f), matLines, false);
-            CreateBox("Line_PenaltyBox_R", root.transform, new Vector3(20.16f, lineY, -8.25f), new Vector3(lw, 0.008f, 16.5f), matLines, false);
+            CreateBox("Line_PenaltyBox_Back", linesContainer.transform, new Vector3(0f, lineY, -16.5f), new Vector3(40.32f, 0.008f, lw), matLines, false);
+            CreateBox("Line_PenaltyBox_L", linesContainer.transform, new Vector3(-20.16f, lineY, -8.25f), new Vector3(lw, 0.008f, 16.5f), matLines, false);
+            CreateBox("Line_PenaltyBox_R", linesContainer.transform, new Vector3(20.16f, lineY, -8.25f), new Vector3(lw, 0.008f, 16.5f), matLines, false);
 
             // Goal Box: 18.32m wide x 5.5m deep
-            CreateBox("Line_GoalBox_Back", root.transform, new Vector3(0f, lineY, -5.5f), new Vector3(18.32f, 0.008f, lw), matLines, false);
-            CreateBox("Line_GoalBox_L", root.transform, new Vector3(-9.16f, lineY, -2.75f), new Vector3(lw, 0.008f, 5.5f), matLines, false);
-            CreateBox("Line_GoalBox_R", root.transform, new Vector3(9.16f, lineY, -2.75f), new Vector3(lw, 0.008f, 5.5f), matLines, false);
+            CreateBox("Line_GoalBox_Back", linesContainer.transform, new Vector3(0f, lineY, -5.5f), new Vector3(18.32f, 0.008f, lw), matLines, false);
+            CreateBox("Line_GoalBox_L", linesContainer.transform, new Vector3(-9.16f, lineY, -2.75f), new Vector3(lw, 0.008f, 5.5f), matLines, false);
+            CreateBox("Line_GoalBox_R", linesContainer.transform, new Vector3(9.16f, lineY, -2.75f), new Vector3(lw, 0.008f, 5.5f), matLines, false);
 
             // Goal Line & Touchlines
-            CreateBox("Line_GoalLine", root.transform, new Vector3(0f, lineY, 0f), new Vector3(68f, 0.008f, lw), matLines, false);
-            CreateBox("Line_TouchL", root.transform, new Vector3(-34f, lineY, -25f), new Vector3(lw, 0.008f, 50f), matLines, false);
-            CreateBox("Line_TouchR", root.transform, new Vector3(34f, lineY, -25f), new Vector3(lw, 0.008f, 50f), matLines, false);
+            CreateBox("Line_GoalLine", linesContainer.transform, new Vector3(0f, lineY, 0f), new Vector3(68f, 0.008f, lw), matLines, false);
+            CreateBox("Line_TouchL", linesContainer.transform, new Vector3(-34f, lineY, -25f), new Vector3(lw, 0.008f, 50f), matLines, false);
+            CreateBox("Line_TouchR", linesContainer.transform, new Vector3(34f, lineY, -25f), new Vector3(lw, 0.008f, 50f), matLines, false);
 
             // Smooth Penalty Arc (18 connected chord segments around z=-11, r=9.15m outside penalty box z < -16.5)
             float arcRadius = 9.15f;
@@ -314,7 +320,7 @@ namespace UltimatePenaltyCup.Editor
 
                 Vector3 mid = (p0 + p1) * 0.5f;
                 float segLen = Vector3.Distance(p0, p1) + 0.03f;
-                GameObject seg = CreateBox($"PenArc_{i + 9}", root.transform, mid, new Vector3(segLen, 0.008f, lw), matLines, false);
+                GameObject seg = CreateBox($"PenArc_{i + 9}", linesContainer.transform, mid, new Vector3(segLen, 0.008f, lw), matLines, false);
                 seg.transform.rotation = Quaternion.LookRotation(Vector3.Cross(Vector3.up, (p1 - p0).normalized));
             }
 
@@ -324,8 +330,13 @@ namespace UltimatePenaltyCup.Editor
             spot.transform.SetParent(root.transform);
             spot.transform.localPosition = new Vector3(0f, 0.004f, -11f);
             spot.transform.localScale = new Vector3(0.18f, 0.004f, 0.18f);
-            spot.GetComponent<Renderer>().sharedMaterial = matLines;
+            Renderer spotRend = spot.GetComponent<Renderer>();
+            spotRend.sharedMaterial = matLines;
+            spotRend.shadowCastingMode = ShadowCastingMode.Off;
             Object.DestroyImmediate(spot.GetComponent<Collider>());
+
+            // Combine all pitch lines into a single draw call (shadow casting off)
+            CombineStaticMeshesByMaterial(linesContainer, "PitchLines", castShadows: false);
 
             // Corner Flags
             CreateCornerFlag("CornerFlag_L", root.transform, new Vector3(-34f, 0f, 0f), matLines, matGold);
@@ -336,6 +347,12 @@ namespace UltimatePenaltyCup.Editor
             GameObject vNight = BuildNightVenue(root.transform, matConcrete, matStands, matBanner, matMetal, matSeats, out Light[] nightLights);
             GameObject vPro = BuildProfessionalVenue(root.transform, matConcrete, matStands, matBanner, matMetal, matSeats, out Light[] proLights);
             GameObject vWorldCup = BuildWorldCupVenue(root.transform, matConcrete, matStands, matBanner, matMetal, matSeats, matGold, out Light[] wcLights, out ParticleSystem confetti);
+
+            // Static mesh batching by material per venue (reduces ~160 draw calls to ~6-8 per active venue)
+            CombineStaticMeshesByMaterial(vCantera, "Venue_Cantera", castShadows: true);
+            CombineStaticMeshesByMaterial(vNight, "Venue_Night", castShadows: true);
+            CombineStaticMeshesByMaterial(vPro, "Venue_Professional", castShadows: true);
+            CombineStaticMeshesByMaterial(vWorldCup, "Venue_WorldCup", castShadows: true);
 
             // Merge all floodlights for StadiumController
             var allLights = new List<Light>();
@@ -545,11 +562,11 @@ namespace UltimatePenaltyCup.Editor
             cm.startLifetime = 4.5f;
             cm.startSpeed = 7.5f;
             cm.startSize = new ParticleSystem.MinMaxCurve(0.14f, 0.34f);
-            cm.maxParticles = 450;
+            cm.maxParticles = 180;
             cm.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.84f, 0.2f), new Color(0.15f, 0.72f, 1f));
             cm.loop = true;
             var em = confetti.emission;
-            em.rateOverTime = 55f;
+            em.rateOverTime = 24f;
             var sh = confetti.shape;
             sh.shapeType = ParticleSystemShapeType.Box;
             sh.scale = new Vector3(42f, 1f, 1f);
@@ -657,8 +674,99 @@ namespace UltimatePenaltyCup.Editor
             l.intensity = 35f;
             l.range = 85f;
             l.spotAngle = 72f;
-            l.shadows = LightShadows.Soft;
+            l.shadows = LightShadows.None;
             return l;
+        }
+
+        private static void CombineStaticMeshesByMaterial(GameObject container, string assetPrefix, bool castShadows)
+        {
+            if (container == null) return;
+
+            const string folder = "Assets/Art/Models/Stadium";
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+            var groups = new Dictionary<Material, List<CombineInstance>>();
+            var toDestroy = new List<GameObject>();
+            Matrix4x4 containerWorldToLocal = container.transform.worldToLocalMatrix;
+
+            MeshFilter[] filters = container.GetComponentsInChildren<MeshFilter>(true);
+            foreach (var mf in filters)
+            {
+                if (mf == null || mf.sharedMesh == null) continue;
+                GameObject go = mf.gameObject;
+                if (go == container) continue;
+                if (go.GetComponent<Collider>() != null || go.GetComponent<Light>() != null || go.GetComponent<ParticleSystem>() != null) continue;
+                if (PrefabUtility.IsPartOfPrefabInstance(go)) continue;
+
+                MeshRenderer mr = go.GetComponent<MeshRenderer>();
+                if (mr == null || mr.sharedMaterial == null) continue;
+
+                Material mat = mr.sharedMaterial;
+                if (!groups.TryGetValue(mat, out var list))
+                {
+                    list = new List<CombineInstance>();
+                    groups[mat] = list;
+                }
+
+                list.Add(new CombineInstance
+                {
+                    mesh = mf.sharedMesh,
+                    transform = containerWorldToLocal * mf.transform.localToWorldMatrix
+                });
+                toDestroy.Add(go);
+            }
+
+            foreach (var go in toDestroy)
+            {
+                Object.DestroyImmediate(go);
+            }
+
+            int groupIdx = 0;
+            foreach (var kvp in groups)
+            {
+                Material mat = kvp.Key;
+                List<CombineInstance> instances = kvp.Value;
+                if (instances.Count == 0) continue;
+
+                int totalVerts = 0;
+                for (int i = 0; i < instances.Count; i++)
+                {
+                    totalVerts += instances[i].mesh.vertexCount;
+                }
+
+                Mesh combined = new Mesh
+                {
+                    name = $"{assetPrefix}_{mat.name}_Batch",
+                    indexFormat = totalVerts > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16
+                };
+                combined.CombineMeshes(instances.ToArray(), true, true);
+                combined.RecalculateBounds();
+                combined.Optimize();
+
+                string safeMatName = mat.name.Replace(" ", "_").Replace("/", "_");
+                string assetPath = $"{folder}/Mesh_{assetPrefix}_{groupIdx}_{safeMatName}.asset";
+                Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(assetPath);
+                if (existing != null)
+                {
+                    EditorUtility.CopySerialized(combined, existing);
+                    EditorUtility.SetDirty(existing);
+                    combined = existing;
+                }
+                else
+                {
+                    AssetDatabase.CreateAsset(combined, assetPath);
+                }
+
+                GameObject batchObj = new GameObject($"StaticBatch_{safeMatName}");
+                batchObj.transform.SetParent(container.transform, false);
+                batchObj.isStatic = true;
+                batchObj.AddComponent<MeshFilter>().sharedMesh = combined;
+                MeshRenderer batchRenderer = batchObj.AddComponent<MeshRenderer>();
+                batchRenderer.sharedMaterial = mat;
+                bool shouldCast = castShadows && !mat.name.Contains("Banner");
+                batchRenderer.shadowCastingMode = shouldCast ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                groupIdx++;
+            }
         }
 
         // ==================== PRIMITIVE / NET HELPERS ====================

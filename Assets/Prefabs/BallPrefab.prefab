@@ -273,7 +273,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84f8a9f9d88a9754b9fb60d000f2610e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UltimatePenaltyCup.Gameplay.BallController
+  m_EditorClassIdentifier: UltimatePenaltyCup.Runtime::UltimatePenaltyCup.Gameplay.BallController
   rb: {fileID: 0}
   sphereCollider: {fileID: 0}
   meshRenderer: {fileID: 0}

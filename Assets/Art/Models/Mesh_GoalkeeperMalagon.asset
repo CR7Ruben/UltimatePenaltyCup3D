@@ -17,8 +17,8 @@ Mesh:
     firstVertex: 0
     vertexCount: 1409
     localAABB:
-      m_Center: {x: 0, y: 1.2957968, z: 0.010000005}
-      m_Extent: {x: 0.35374928, y: 0.30780315, z: 0.14}
+      m_Center: {x: 0, y: 1.2958483, z: 0.010000005}
+      m_Extent: {x: 0.35263404, y: 0.3077517, z: 0.14}
   - serializedVersion: 2
     firstByte: 5472
     indexCount: 516
@@ -77,8 +77,8 @@ Mesh:
     firstVertex: 1651
     vertexCount: 750
     localAABB:
-      m_Center: {x: 0, y: 0.047475, z: 0.050000004}
-      m_Extent: {x: 0.17471999, y: 0.047475, z: 0.14097562}
+      m_Center: {x: 0, y: 0.042365, z: 0.045725927}
+      m_Extent: {x: 0.168, y: 0.042035, z: 0.12541015}
   - serializedVersion: 2
     firstByte: 20568
     indexCount: 1152
@@ -527,8 +527,8 @@ Mesh:
       m_BitSize: 0
     m_UVInfo: 0
   m_LocalAABB:
-    m_Center: {x: 0, y: 0.96932495, z: 0.028565586}
-    m_Extent: {x: 0.3696, y: 0.96932495, z: 0.16241005}
+    m_Center: {x: 0, y: 0.96948993, z: 0.018645808}
+    m_Extent: {x: 0.3696, y: 0.96915996, z: 0.15249027}
   m_CookingOptions: 30
   m_PreBakeConvexCollisionMesh: 0
   m_PreBakeTriangleCollisionMesh: 0

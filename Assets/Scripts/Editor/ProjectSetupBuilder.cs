@@ -204,6 +204,7 @@ namespace UltimatePenaltyCup.Editor
             }
             mat.shader = shader;
             mat.color = color;
+            mat.enableInstancing = true;
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
@@ -218,23 +219,23 @@ namespace UltimatePenaltyCup.Editor
             // --- 5 Balanced Rounds ---
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round1_Cantera.asset", 1, "Cantera",
                 "Estadio de entrenamiento. Anota 3 goles en un máximo de 5 intentos para avanzar.",
-                3, 5, 500, 300, StadiumType.Cantera, "Portero Principiante", 0.24f, 4.2f, 5.2f, 0.42f);
+                3, 5, 500, 300, StadiumType.Cantera, "Portero Principiante", 0.25f, 4.0f, 5.0f, 0.44f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round2_LigaLocal.asset", 2, "Liga Local",
                 "Ambiente competitivo nocturno. El arquero gana agilidad lateral y reflejos.",
-                3, 5, 500, 450, StadiumType.Night, "Portero Intermedio", 0.19f, 5.4f, 6.8f, 0.30f);
+                3, 5, 500, 450, StadiumType.Night, "Portero Intermedio", 0.20f, 5.2f, 6.5f, 0.32f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round3_LigaProfesional.asset", 3, "Liga Profesional",
                 "Estadio profesional a máxima capacidad. Meta exigente: 4 de 5 penales.",
-                4, 5, 650, 650, StadiumType.Professional, "Portero Profesional", 0.15f, 6.6f, 8.4f, 0.20f);
+                4, 5, 650, 650, StadiumType.Professional, "Portero Profesional", 0.16f, 6.4f, 8.0f, 0.22f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round4_Semifinal.asset", 4, "Semifinal",
                 "Tensión de eliminatoria bajo reflectores. Coloca tus disparos en la escuadra.",
-                4, 5, 800, 900, StadiumType.Night, "Portero Avanzado", 0.11f, 7.8f, 10.0f, 0.12f);
+                4, 5, 800, 900, StadiumType.Night, "Portero Avanzado", 0.12f, 7.6f, 9.5f, 0.14f);
 
             CreateRoundSO("Assets/ScriptableObjects/Rounds/Round5_GranFinal.asset", 5, "Gran Final",
                 "¡El título en juego! Supera al Malágon de élite con 4 goles en el Estadio Mundial.",
-                4, 5, 1200, 1500, StadiumType.WorldCup, "Portero Élite", 0.08f, 9.0f, 11.6f, 0.06f);
+                4, 5, 1200, 1500, StadiumType.WorldCup, "Portero Élite", 0.09f, 8.8f, 11.0f, 0.08f);
 
             // --- 5 Ball Items (wired with real rendered 3D preview sprites!) ---
             CreateBallSO("Assets/ScriptableObjects/Items/Ball_Classic.asset", BallType.Classic, "Balón Clásico",

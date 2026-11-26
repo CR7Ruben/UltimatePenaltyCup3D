@@ -84,6 +84,15 @@ namespace UltimatePenaltyCup.Player
             return null;
         }
 
+        private void OnDisable()
+        {
+            if (activeAnimCoroutine != null)
+            {
+                StopCoroutine(activeAnimCoroutine);
+                activeAnimCoroutine = null;
+            }
+        }
+
         private void Update()
         {
             if (!canMove || Time.timeScale <= 0f) return;
@@ -128,38 +137,40 @@ namespace UltimatePenaltyCup.Player
                 float armAngle = Mathf.Cos(walkCycleTimer) * 24f;
                 float bob = Mathf.Abs(Mathf.Sin(walkCycleTimer * 2f)) * 0.03f;
 
-                if (hips != null) hips.localPosition = new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y + bob, hipsBaseLocalPos.z);
-                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(6f, moveDir.x * 10f, 0f), dt * 12f);
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(-legAngle, 0f, 0f);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Euler(leftKnee, 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(legAngle, 0f, 0f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(rightKnee, 0f, 0f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(armAngle, 0f, 10f);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Euler(-25f, 0f, 0f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(-armAngle, 0f, -10f);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Euler(-25f, 0f, 0f);
+                float blend = 1f - Mathf.Exp(-18f * dt);
+                if (hips != null) hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y + bob, hipsBaseLocalPos.z), blend);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(6f, moveDir.x * 10f, 0f), blend);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-legAngle, 0f, 0f), blend);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(leftKnee, 0f, 0f), blend);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(legAngle, 0f, 0f), blend);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(rightKnee, 0f, 0f), blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(armAngle, 0f, 10f), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-25f, 0f, 0f), blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-armAngle, 0f, -10f), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-25f, 0f, 0f), blend);
             }
             else
             {
                 // Focused penalty taker ready stance (slight knee bend, subtle breathing)
                 walkCycleTimer += dt * 2.4f;
                 float breathe = Mathf.Sin(walkCycleTimer) * 0.012f;
+                float idleBlend = 1f - Mathf.Exp(-10f * dt);
 
-                if (hips != null) hips.localPosition = new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y - 0.02f + breathe, hipsBaseLocalPos.z);
-                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(4f, 0f, 0f), dt * 8f);
-                if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(3f, 0f, 0f), dt * 8f);
-                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-4f, 0f, 0f), dt * 8f);
+                if (hips != null) hips.localPosition = Vector3.Lerp(hips.localPosition, new Vector3(hipsBaseLocalPos.x, hipsBaseLocalPos.y - 0.02f + breathe, hipsBaseLocalPos.z), idleBlend);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(4f, 0f, 0f), idleBlend);
+                if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.Euler(3f, 0f, 0f), idleBlend);
+                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-4f, 0f, 0f), idleBlend);
 
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-6f, -5f, -3f), dt * 8f);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(10f, 0f, 0f), dt * 8f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(4f, 5f, 3f), dt * 8f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(8f, 0f, 0f), dt * 8f);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-6f, -5f, -3f), idleBlend);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(10f, 0f, 0f), idleBlend);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(4f, 5f, 3f), idleBlend);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(8f, 0f, 0f), idleBlend);
 
                 float armSway = Mathf.Sin(walkCycleTimer) * 2.5f;
-                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(6f, 0f, 14f + armSway), dt * 8f);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-22f, 0f, 0f), dt * 8f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(6f, 0f, -14f - armSway), dt * 8f);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-22f, 0f, 0f), dt * 8f);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(6f, 0f, 14f + armSway), idleBlend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-22f, 0f, 0f), idleBlend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(6f, 0f, -14f - armSway), idleBlend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-22f, 0f, 0f), idleBlend);
             }
         }
 
@@ -172,90 +183,93 @@ namespace UltimatePenaltyCup.Player
 
         private IEnumerator KickRoutine(Vector3 targetBallPos, Action onKickContact)
         {
-            // 1. Run-up approach slightly left of ball
-            Vector3 approachPos = new Vector3(targetBallPos.x - 0.30f, 0f, targetBallPos.z - 0.50f);
+            // 1. Crisp athletic run-up approach slightly left of ball (0.16s)
+            Vector3 approachPos = new Vector3(targetBallPos.x - 0.30f, 0f, targetBallPos.z - 0.48f);
             Vector3 startP = transform.position;
-            float runDuration = 0.28f;
+            float runDuration = 0.16f;
             float t = 0f;
 
             while (t < runDuration)
             {
                 t += Time.deltaTime;
-                float p = Mathf.Clamp01(t / runDuration);
+                float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / runDuration));
                 transform.position = Vector3.Lerp(startP, approachPos, p);
 
                 Vector3 lookDir = (targetBallPos - transform.position);
                 lookDir.y = 0f;
                 if (lookDir.sqrMagnitude > 0.01f)
                 {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 12f);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 16f);
                 }
 
-                float runPhase = p * Mathf.PI * 3.5f;
+                float runPhase = p * Mathf.PI * 2.5f;
                 float legS = Mathf.Sin(runPhase);
-                if (spine != null) spine.localRotation = Quaternion.Euler(12f, 0f, 0f);
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(legS * 38f, 0f, 0f);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Euler(Mathf.Max(0f, -legS) * 45f + 12f, 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(-legS * 38f, 0f, 0f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(Mathf.Max(0f, legS) * 45f + 12f, 0f, 0f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(-legS * 32f, 0f, 16f);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Euler(-45f, 0f, 0f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(legS * 32f, 0f, -16f);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Euler(-45f, 0f, 0f);
+                float blend = 1f - Mathf.Exp(-24f * Time.deltaTime);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(12f, 0f, 0f), blend);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(legS * 36f, 0f, 0f), blend);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(Mathf.Max(0f, -legS) * 44f + 12f, 0f, 0f), blend);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-legS * 36f, 0f, 0f), blend);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(Mathf.Max(0f, legS) * 44f + 12f, 0f, 0f), blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-legS * 30f, 0f, 18f), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-45f, 0f, 0f), blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(legS * 30f, 0f, -18f), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-45f, 0f, 0f), blend);
 
                 yield return null;
             }
 
-            // 2. Wind-up (plant left foot, draw kicking right leg back with knee bend)
-            float cockTime = 0.11f;
+            // 2. Wind-up (0.07s): plant left foot, draw kicking right leg back
+            float cockTime = 0.07f;
             t = 0f;
+            Quaternion lLegCockStart = leftLeg != null ? leftLeg.localRotation : Quaternion.identity;
+            Quaternion rLegCockStart = rightLeg != null ? rightLeg.localRotation : Quaternion.identity;
+            Quaternion rShinCockStart = rightShin != null ? rightShin.localRotation : Quaternion.identity;
+            Quaternion spineCockStart = spine != null ? spine.localRotation : Quaternion.identity;
             while (t < cockTime)
             {
                 t += Time.deltaTime;
-                float p = Mathf.Clamp01(t / cockTime);
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(Mathf.Lerp(0f, -16f, p), 0f, -8f);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Euler(Mathf.Lerp(10f, 24f, p), 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(Mathf.Lerp(0f, 52f, p), 0f, 6f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(Mathf.Lerp(12f, 68f, p), 0f, 0f);
-                if (spine != null) spine.localRotation = Quaternion.Euler(8f, Mathf.Lerp(0f, -22f, p), -6f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(-28f, 0f, 48f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(25f, 0f, -18f);
+                float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / cockTime));
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(lLegCockStart, Quaternion.Euler(-16f, 0f, -8f), p);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(24f, 0f, 0f), p);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rLegCockStart, Quaternion.Euler(52f, 0f, 6f), p);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rShinCockStart, Quaternion.Euler(68f, 0f, 0f), p);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spineCockStart, Quaternion.Euler(8f, -22f, -6f), p);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-28f, 0f, 48f), p);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(25f, 0f, -18f), p);
                 yield return null;
             }
 
-            // 3. Snap kicking leg to contact ball
-            float swingTime = 0.06f;
+            // 3. Snap kicking leg smoothly into ball contact (0.05s -> total pre-contact 0.28s)
+            float swingTime = 0.05f;
             t = 0f;
             while (t < swingTime)
             {
                 t += Time.deltaTime;
-                float p = Mathf.Clamp01(t / swingTime);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(Mathf.Lerp(52f, -25f, p), 0f, 0f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(Mathf.Lerp(68f, 10f, p), 0f, 0f);
+                float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / swingTime));
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(Quaternion.Euler(52f, 0f, 6f), Quaternion.Euler(-25f, 0f, 0f), p);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(Quaternion.Euler(68f, 0f, 0f), Quaternion.Euler(10f, 0f, 0f), p);
                 yield return null;
             }
 
             // 4. Kick strike contact!
             onKickContact?.Invoke();
 
-            // 5. Dynamic follow-through
+            // 5. Dynamic follow-through (0.18s)
             float followTime = 0.18f;
             t = 0f;
             while (t < followTime)
             {
                 t += Time.deltaTime;
-                float p = Mathf.Clamp01(t / followTime);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(Mathf.Lerp(-25f, -72f, p), 0f, -6f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(10f, 0f, 0f);
-                if (spine != null) spine.localRotation = Quaternion.Euler(14f, Mathf.Lerp(-22f, 18f, p), 6f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(20f, 0f, 22f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(-52f, 0f, -32f);
+                float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / followTime));
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(Quaternion.Euler(-25f, 0f, 0f), Quaternion.Euler(-72f, 0f, -6f), p);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(10f, 0f, 0f), p);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(Quaternion.Euler(8f, -22f, -6f), Quaternion.Euler(14f, 18f, 6f), p);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(20f, 0f, 22f), p);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-52f, 0f, -32f), p);
                 yield return null;
             }
 
-            yield return new WaitForSeconds(0.12f);
-            transform.rotation = startRotation;
-            ResetPose();
+            yield return SmoothReturnToIdlePose(0.22f);
         }
 
         public void PlayGoalCelebration()
@@ -270,27 +284,28 @@ namespace UltimatePenaltyCup.Player
             float timer = 0f;
             Vector3 basePos = new Vector3(transform.position.x, 0f, transform.position.z);
 
-            while (timer < 1.6f)
+            while (timer < 1.35f)
             {
                 timer += Time.deltaTime;
-                float jump = Mathf.Abs(Mathf.Sin(timer * 7.5f)) * 0.36f;
+                float jump = Mathf.Abs(Mathf.Sin(timer * 7.5f)) * 0.34f;
+                float blend = 1f - Mathf.Exp(-14f * Time.deltaTime);
                 transform.position = new Vector3(basePos.x, jump, basePos.z);
 
-                if (spine != null) spine.localRotation = Quaternion.Euler(-10f, Mathf.Sin(timer * 5f) * 14f, 0f);
-                if (head != null) head.localRotation = Quaternion.Euler(-18f, 0f, 0f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(-148f, 0f, 22f);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Euler(-20f, 0f, 0f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(-148f, 0f, -22f);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Euler(-20f, 0f, 0f);
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(-jump * 40f, 0f, 0f);
-                if (leftShin != null) leftShin.localRotation = Quaternion.Euler(jump * 80f, 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(-jump * 40f, 0f, 0f);
-                if (rightShin != null) rightShin.localRotation = Quaternion.Euler(jump * 80f, 0f, 0f);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(-10f, Mathf.Sin(timer * 5f) * 14f, 0f), blend);
+                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(-18f, 0f, 0f), blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-148f, 0f, 22f), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-20f, 0f, 0f), blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-148f, 0f, -22f), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-20f, 0f, 0f), blend);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(-jump * 40f, 0f, 0f), blend);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.Euler(jump * 80f, 0f, 0f), blend);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-jump * 40f, 0f, 0f), blend);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.Euler(jump * 80f, 0f, 0f), blend);
 
                 yield return null;
             }
             transform.position = basePos;
-            ResetPose();
+            yield return SmoothReturnToIdlePose(0.22f);
         }
 
         public void PlayMissReaction()
@@ -304,18 +319,53 @@ namespace UltimatePenaltyCup.Player
             canMove = false;
             float timer = 0f;
 
-            while (timer < 1.6f)
+            while (timer < 1.35f)
             {
                 timer += Time.deltaTime;
-                if (spine != null) spine.localRotation = Quaternion.Euler(18f, 0f, 0f);
-                if (head != null) head.localRotation = Quaternion.Euler(22f, Mathf.Sin(timer * 6f) * 10f, 0f);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(-115f, 0f, 38f);
-                if (leftForearm != null) leftForearm.localRotation = Quaternion.Euler(-95f, 0f, 0f);
-                if (rightArm != null) rightArm.localRotation = Quaternion.Euler(-115f, 0f, -38f);
-                if (rightForearm != null) rightForearm.localRotation = Quaternion.Euler(-95f, 0f, 0f);
+                float blend = 1f - Mathf.Exp(-12f * Time.deltaTime);
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.Euler(18f, 0f, 0f), blend);
+                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.Euler(22f, Mathf.Sin(timer * 6f) * 10f, 0f), blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-115f, 0f, 38f), blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.Euler(-95f, 0f, 0f), blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(-115f, 0f, -38f), blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.Euler(-95f, 0f, 0f), blend);
 
                 yield return null;
             }
+            yield return SmoothReturnToIdlePose(0.22f);
+        }
+
+        private IEnumerator SmoothReturnToIdlePose(float duration)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+                transform.rotation = Quaternion.Slerp(transform.rotation, startRotation, blend);
+
+                if (hips != null)
+                {
+                    hips.localPosition = Vector3.Lerp(hips.localPosition, hipsBaseLocalPos, blend);
+                    hips.localRotation = Quaternion.Slerp(hips.localRotation, Quaternion.identity, blend);
+                }
+                if (spine != null) spine.localRotation = Quaternion.Slerp(spine.localRotation, Quaternion.identity, blend);
+                if (chest != null) chest.localRotation = Quaternion.Slerp(chest.localRotation, Quaternion.identity, blend);
+                if (torso != null) torso.localRotation = Quaternion.Slerp(torso.localRotation, Quaternion.identity, blend);
+                if (head != null) head.localRotation = Quaternion.Slerp(head.localRotation, Quaternion.identity, blend);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.identity, blend);
+                if (leftForearm != null) leftForearm.localRotation = Quaternion.Slerp(leftForearm.localRotation, Quaternion.identity, blend);
+                if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.identity, blend);
+                if (rightForearm != null) rightForearm.localRotation = Quaternion.Slerp(rightForearm.localRotation, Quaternion.identity, blend);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.identity, blend);
+                if (leftShin != null) leftShin.localRotation = Quaternion.Slerp(leftShin.localRotation, Quaternion.identity, blend);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.identity, blend);
+                if (rightShin != null) rightShin.localRotation = Quaternion.Slerp(rightShin.localRotation, Quaternion.identity, blend);
+
+                yield return null;
+            }
+
+            transform.rotation = startRotation;
             ResetPose();
         }
 

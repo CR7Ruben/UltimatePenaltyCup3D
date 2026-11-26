@@ -11,13 +11,15 @@
 
 ## Progresión de rondas
 
-| Ronda | Nombre | Meta / Intentos | Estadio temático | Nivel de Malágon | Delay | DiveSpeed | Error | Bono |
-|---|---|---|---|---|---|---|---|---|
-| 1 | Cantera | 3 / 5 | Cantera (Día) | Principiante | 0.24 s | 5.2 | 42 % | +500 pts / +300 monedas |
-| 2 | Liga Local | 3 / 5 | Nocturno | Intermedio | 0.19 s | 6.8 | 30 % | +500 pts / +450 monedas |
-| 3 | Liga Profesional | 4 / 5 | Profesional | Profesional | 0.15 s | 8.4 | 20 % | +650 pts / +650 monedas |
-| 4 | Semifinal | 4 / 5 | Nocturno | Avanzado | 0.11 s | 10.0 | 12 % | +800 pts / +900 monedas |
-| 5 | Gran Final | 4 / 5 | Mundial | Élite | 0.08 s | 11.6 | 6 % | +1,200 pts / +1,500 monedas |
+| Ronda | Nombre | Meta / Intentos | Estadio temático | Nivel de Malágon | Delay | MoveSpeed | DiveSpeed | Error | Bono |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Cantera | 3 / 5 | Cantera (Día) | Principiante | 0.25 s | 4.0 | 5.0 | 44 % | +500 pts / +300 monedas |
+| 2 | Liga Local | 3 / 5 | Nocturno | Intermedio | 0.20 s | 5.2 | 6.5 | 32 % | +500 pts / +450 monedas |
+| 3 | Liga Profesional | 4 / 5 | Profesional | Profesional | 0.16 s | 6.4 | 8.0 | 22 % | +650 pts / +650 monedas |
+| 4 | Semifinal | 4 / 5 | Nocturno | Avanzado | 0.12 s | 7.6 | 9.5 | 14 % | +800 pts / +900 monedas |
+| 5 | Gran Final | 4 / 5 | Mundial | Élite | 0.09 s | 8.8 | 11.0 | 8 % | +1,200 pts / +1,500 monedas |
+
+*(Balance validado mediante simulación real de 100 disparos en Play Mode: tasa de atajada al arco de 17.6% en Ronda 1 hasta 55.6% en Ronda 5).*
 
 ---
 
