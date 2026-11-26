@@ -11,6 +11,7 @@ namespace UltimatePenaltyCup.SaveSystem
         public static SaveManager Instance { get; private set; }
 
         public SaveData CurrentData { get; private set; }
+        private bool suppressDiskSaveForTests = false;
 
         public event Action<SaveData> OnDataLoaded;
         public event Action<SaveData> OnDataSaved;
@@ -58,7 +59,7 @@ namespace UltimatePenaltyCup.SaveSystem
 
         public void Save()
         {
-            if (CurrentData == null) return;
+            if (CurrentData == null || suppressDiskSaveForTests) return;
 
             try
             {
@@ -110,8 +111,18 @@ namespace UltimatePenaltyCup.SaveSystem
                 CurrentData.unlockedAchievements = new System.Collections.Generic.List<string>();
             }
 
+            if (CurrentData.redeemedCodes == null)
+            {
+                CurrentData.redeemedCodes = new System.Collections.Generic.List<string>();
+            }
+
             if (CurrentData.coins < 0) CurrentData.coins = 0;
             if (CurrentData.totalPoints < 0) CurrentData.totalPoints = 0;
+            if (CurrentData.aimSensitivity <= 0.05f) CurrentData.aimSensitivity = 1.0f;
+            if (CurrentData.masterVolume <= 0f && CurrentData.musicVolume > 0f && CurrentData.sfxVolume > 0f)
+            {
+                // Keep explicit 0 only if user set it; ensure legacy saves default nicely
+            }
         }
 
         public bool UnlockRound(int roundNumber)
@@ -187,6 +198,14 @@ namespace UltimatePenaltyCup.SaveSystem
                 CurrentData.highScore = matchScore;
                 Save();
             }
+        }
+
+        public void SetTestDataInMemory(SaveData data)
+        {
+            Instance = this;
+            suppressDiskSaveForTests = true;
+            CurrentData = data ?? new SaveData();
+            ValidateDataIntegrity();
         }
 
         public void ResetAllData()

@@ -22,14 +22,22 @@ namespace UltimatePenaltyCup.SaveSystem
 
         // Statistics
         public int totalGoalsScored = 0;
+        public int totalCornerGoals = 0;
         public int bestGoalStreak = 0;
         public int totalMatchesPlayed = 0;
         public int totalRoundsWon = 0;
         public int finalRoundBestScore = 0;
 
-        // Audio settings
+        // Audio & Display settings (with backward-compatible defaults)
+        public float masterVolume = 1.0f;
         public float musicVolume = 0.8f;
         public float sfxVolume = 0.9f;
+        public int resolutionIndex = -1;
+        public bool isFullscreen = true;
+        public int qualityLevel = 2;
+        public float aimSensitivity = 1.0f;
+        public bool useCustomStadiumOverride = false;
+        public List<string> redeemedCodes = new List<string>();
 
         public SaveData()
         {
@@ -39,6 +47,7 @@ namespace UltimatePenaltyCup.SaveSystem
             unlockedStadiums = new List<StadiumType> { StadiumType.Cantera };
             selectedStadium = StadiumType.Cantera;
             unlockedAchievements = new List<string>();
+            redeemedCodes = new List<string>();
         }
     }
 }

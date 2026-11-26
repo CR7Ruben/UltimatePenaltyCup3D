@@ -1,136 +1,17 @@
-# Ultimate Penalty Cup 3D — Project Audit
+# UltimatePenaltyCup3D — Auditoría Técnica del Proyecto
 
-**Audit Date**: 2026-11-25
-**Auditor**: Automated Development Pipeline
-**Project**: Ultimate Penalty Cup 3D (A&R Game Labs)
-
----
-
-## 1. Project Configuration
-
-| Setting | Value | Status |
-|---|---|---|
-| Unity Version | 6000.6.4f1 | ✅ |
-| Render Pipeline | Universal Render Pipeline (URP) | ✅ |
-| Input System | Both (New + Legacy) | ✅ |
-| Scripting Backend | Mono | ✅ |
-| Target Platform | Windows x64 Standalone | ✅ |
-| Company Name | A&R Game Labs | ✅ |
-| Product Name | Ultimate Penalty Cup 3D | ✅ |
+**Fecha:** 2026-11-25  
+**Proyecto:** `UltimatePenaltyCup3D` (A&R Game Labs)  
+**Motor:** Unity 6 (`6000.6.4f1`, URP)
 
 ---
 
-## 2. Code Quality
+## 1. Hallazgos clave corregidos en esta auditoría
 
-| Metric | Value |
-|---|---|
-| Total C# scripts | 39 |
-| Compiler errors | 0 |
-| Compiler warnings | 1 (CS0414 — harmless) |
-| Namespaces used | 12 (well-organized) |
-| Singleton pattern | Used by all managers (consistent) |
-| Event-driven architecture | Yes (C# events, no polling) |
-| ScriptableObject data | Yes (rounds, items, achievements) |
-| `#pragma warning disable 0649` | Applied to all scripts (clean build) |
-
----
-
-## 3. Scene Audit
-
-### MainMenu.unity (Scene 0)
-| Component | Present |
-|---|---|
-| Camera + AudioListener | ✅ |
-| Directional Light | ✅ |
-| EventSystem + InputSystemUIInputModule | ✅ |
-| Canvas (ScreenSpaceOverlay, 1920x1080 reference) | ✅ |
-| GameManager + all manager components | ✅ |
-| MainMenuUI with 6 panels | ✅ |
-| RoundSelectUI with 5 cards | ✅ |
-| ShopUI with ball/stadium tabs | ✅ |
-| CustomizationUI | ✅ |
-| AchievementsUI with 7 cards | ✅ |
-| SettingsUI with sliders | ✅ |
-
-### MatchScene.unity (Scene 1)
-| Component | Present |
-|---|---|
-| StadiumEnvironment prefab | ✅ |
-| GoalPrefab with GoalDetector | ✅ |
-| BallPrefab with BallController | ✅ |
-| Player_RubenGonzalez with PlayerController + PlayerShooter | ✅ |
-| Goalkeeper_Malagon with GoalkeeperAI | ✅ |
-| Main Camera + AudioListener | ✅ |
-| Directional Light | ✅ |
-| PenaltyManager | ✅ |
-| Canvas_MatchHUD with MatchHUD | ✅ |
-| PauseUI | ✅ |
-| RoundEndUI | ✅ |
-
----
-
-## 4. Prefab Audit
-
-| Prefab | Components | Tag | Status |
-|---|---|---|---|
-| Player_RubenGonzalez | PlayerController, PlayerShooter, Visuals hierarchy | — | ✅ |
-| Goalkeeper_Malagon | GoalkeeperAI, Visuals hierarchy, Colliders | Goalkeeper | ✅ |
-| BallPrefab | Rigidbody, SphereCollider, BallController, TrailRenderer, ParticleSystem | — | ✅ |
-| GoalPrefab | Posts(tagged "Post"), Crossbar, Net, GoalTriggerDetector | Post | ✅ |
-| StadiumEnvironment | StadiumController, Pitch, Lines, Stands, Floodlights, Confetti | — | ✅ |
-| Trophy_Cup | Gold material, Base+Stem+Cup+Handles | — | ✅ |
-
----
-
-## 5. Material & Texture Audit
-
-| Material | Texture Mapped | Alpha Clipping |
-|---|---|---|
-| Mat_Grass_Cantera | Tex_Grass_Striped.png | No |
-| Mat_Grass_Night | Tex_Grass_Night.png | No |
-| Mat_Grass_Pro | Tex_Grass_Pro.png | No |
-| Mat_Grass_WorldCup | Tex_Grass_WorldCup.png | No |
-| Mat_Goal_Net | Tex_Goal_Net.png | Yes (cutout) |
-| Mat_Ball_Classic | Tex_Ball_Classic.png | No |
-| Mat_Ball_Blue | Tex_Ball_Blue.png | No |
-| Mat_Ball_Fire | Tex_Ball_Fire.png | No |
-| Mat_Ball_Rainbow | Tex_Ball_Rainbow.png | No |
-| Mat_Ball_Gold | Tex_Ball_Gold.png | No |
-| Mat_Player_Kit | Tex_Jersey_Ruben.png | No |
-| Mat_Goalkeeper_Kit | Tex_Jersey_Malagon.png | No |
-| Mat_Skin | Tex_Player_Face.png | No |
-| Mat_Stadium_Banners | Tex_Stadium_Banners.png | No |
-| Mat_Stadium_Stands | Tex_Stadium_Crowd.png | No |
-| Mat_GoldTrophy | Tex_Trophy_Gold.png | No |
-| Mat_Goal_Posts | — (metallic silver) | No |
-| Mat_Lines_White | — (white) | No |
-
----
-
-## 6. Tag & Layer Registration
-
-| Tag | Used By |
-|---|---|
-| `Goalkeeper` | Malágon torso, head, arms, legs, gloves |
-| `Post` | Goal posts (left, right, crossbar) |
-| `MainCamera` | Camera in both scenes |
-
----
-
-## 7. Build Settings
-
-| Scene | Index | Enabled |
-|---|---|---|
-| Assets/Scenes/MainMenu.unity | 0 | ✅ |
-| Assets/Scenes/MatchScene.unity | 1 | ✅ |
-
----
-
-## 8. Risk Assessment
-
-| Risk | Severity | Mitigation |
-|---|---|---|
-| Characters built from primitives | Low | Intentional arcade style; import .fbx for realism |
-| Procedural audio (no recorded clips) | Low | AudioManager accepts clips when available |
-| PlayerPrefs save (no file backup) | Low | Standard for local single-player games |
-| Unity license batch-mode warning | None | Cosmetic log message, no build impact |
+1. **`RoundEndUI` en objeto inactivo:** Estaba adjunto directamente a `Panel_RoundEnd` (`SetActive(false)`), por lo que `Start()` nunca se ejecutaba y ninguna ronda mostraba Victoria/Derrota. Movido al controlador siempre activo `RoundEndManager`.
+2. **Portero sin colliders ni `Rigidbody`:** `CharacterAndStadiumUpgrader` destruía todos los colliders de Malágon, dejándolo intangible y mirando de espaldas al tirador en `z = 0`. Agregado `Rigidbody` cinemático, `CapsuleCollider` corporal, colliders en guantes, rotación `180°` en `z = -0.45f` y barrido continuo en `FixedUpdate`.
+3. **Rondas 2–5 caían a valores por defecto de Ronda 1:** `GameManager.roundConfigs` no quedaba serializado en `MainMenu.unity` porque `RoundManager.SetRounds()` usaba `GameManager.Instance` en modo Editor (`null`). Corregido asignando `gm.SetRoundConfigs(...)` directamente en `ProjectSetupBuilder` y sincronizando en `RoundManager.Awake()`.
+4. **`MatchCameraController` ausente en `Main Camera`:** El generador de `MatchScene` no añadía el componente a la cámara principal. Agregado y reencuadrado.
+5. **Textura facial aplicada a brazos y piernas:** `Mat_Skin` compartía `Tex_Player_Face.png`. Se separó estrictamente en `Mat_Skin_Body` (`Tex_Skin_Body.png`) para extremidades/cuello y `Mat_Face_Ruben` / `Mat_Face_Malagon` mapeados únicamente al hemisferio frontal de la cabeza.
+6. **Build Settings & Nombre:** `SampleScene.unity` excluida de `EditorBuildSettings` (`MainMenu` = 0, `MatchScene` = 1), `ProductName = UltimatePenaltyCup3D`, `CompanyName = A&R Game Labs`, `Version = 1.0.0`.
+7. **Auto-ejecución `[InitializeOnLoad]`:** Eliminada de `ProjectSetupBuilder.cs` para impedir sobreescrituras accidentales de escenas y prefabs al recargar dominios.

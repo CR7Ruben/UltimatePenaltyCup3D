@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roundNumber: 2
   roundName: Liga Local
-  description: Segunda ronda. El portero adquiere mayor agilidad y cubre mejor los postes.
+  description: Ambiente competitivo nocturno. El arquero gana agilidad lateral y reflejos.
   requiredGoals: 3
   maxAttempts: 5
   winPoints: 500
-  winCoins: 400
-  stadiumTheme: 0
+  winCoins: 450
+  stadiumTheme: 1
   goalkeeperName: "Mal\xE1gon"
   goalkeeperTypeTitle: Portero Intermedio
-  reactionDelay: 0.3
-  moveSpeed: 4.5
-  diveSpeed: 5.5
-  errorProbability: 0.25
+  reactionDelay: 0.19
+  moveSpeed: 5.4
+  diveSpeed: 6.8
+  errorProbability: 0.3

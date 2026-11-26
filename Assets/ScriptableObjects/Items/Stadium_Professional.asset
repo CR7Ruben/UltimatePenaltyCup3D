@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stadiumType: 2
   displayName: Estadio Profesional
-  description: Arena deportiva moderna con gradas de alta capacidad.
+  description: "Estadio techado al atardecer con marcador electr\xF3nico y bancas."
   price: 4000
   skyColor: {r: 0.2, g: 0.45, b: 0.75, a: 1}
   equatorColor: {r: 0.3, g: 0.4, b: 0.5, a: 1}
   groundLightColor: {r: 0.15, g: 0.25, b: 0.15, a: 1}
   directionalLightColor: {r: 1, g: 1, b: 1, a: 1}
-  directionalLightIntensity: 1.3
+  directionalLightIntensity: 1.2
   lightRotation: {x: 50, y: -30, z: 0}
   grassMaterial: {fileID: 2100000, guid: 9e1235c2c3c3c8b41a3087e56a583919, type: 2}
   bannerMaterial: {fileID: 0}
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 04a595b648fddae4abe216e2ddead544, type: 3}

@@ -1,7 +1,7 @@
-using System;
 using UnityEngine;
 using UltimatePenaltyCup.Core;
 using UltimatePenaltyCup.Customization;
+using UltimatePenaltyCup.Levels;
 using UltimatePenaltyCup.SaveSystem;
 
 namespace UltimatePenaltyCup.Gameplay
@@ -12,8 +12,13 @@ namespace UltimatePenaltyCup.Gameplay
 
         [Header("Stadium Renderers")]
         [SerializeField] private Renderer pitchRenderer;
-        [SerializeField] private Renderer[] standRenderers;
-        [SerializeField] private Renderer[] bannerRenderers;
+        [SerializeField] private Material bannerMaterial;
+
+        [Header("Distinct Venue Hierarchies")]
+        [SerializeField] private GameObject venueCantera;
+        [SerializeField] private GameObject venueNight;
+        [SerializeField] private GameObject venueProfessional;
+        [SerializeField] private GameObject venueWorldCup;
 
         [Header("Grass Materials for Venues")]
         [SerializeField] private Material matGrassCantera;
@@ -26,25 +31,29 @@ namespace UltimatePenaltyCup.Gameplay
         [SerializeField] private Light[] floodlights;
         [SerializeField] private ParticleSystem confettiSystem;
 
+        private StadiumType activeVenue = StadiumType.Cantera;
+        private Vector2 bannerScrollOffset = Vector2.zero;
+
         private void Awake()
         {
             Instance = this;
+            AutoFindComponents();
         }
 
         private void Start()
         {
             if (CustomizationManager.Instance != null)
             {
-                CustomizationManager.Instance.OnStadiumSelected += ApplyVenue;
-                ApplyVenue(CustomizationManager.Instance.SelectedStadium);
+                CustomizationManager.Instance.OnStadiumSelected += HandleStadiumSelected;
             }
-            else if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
+
+            // If PenaltyManager didn't already apply round venue, apply default/saved
+            if (PenaltyManager.Instance == null)
             {
-                ApplyVenue(SaveManager.Instance.CurrentData.selectedStadium);
-            }
-            else
-            {
-                ApplyVenue(StadiumType.Cantera);
+                StadiumType initial = CustomizationManager.Instance != null
+                    ? CustomizationManager.Instance.SelectedStadium
+                    : StadiumType.Cantera;
+                ApplyVenue(initial);
             }
         }
 
@@ -52,24 +61,73 @@ namespace UltimatePenaltyCup.Gameplay
         {
             if (CustomizationManager.Instance != null)
             {
-                CustomizationManager.Instance.OnStadiumSelected -= ApplyVenue;
+                CustomizationManager.Instance.OnStadiumSelected -= HandleStadiumSelected;
+            }
+        }
+
+        private void Update()
+        {
+            if (bannerMaterial != null && activeVenue != StadiumType.Cantera)
+            {
+                bannerScrollOffset.x = (bannerScrollOffset.x + Time.deltaTime * 0.06f) % 1f;
+                bannerMaterial.mainTextureOffset = bannerScrollOffset;
+                if (bannerMaterial.HasProperty("_BaseMap"))
+                {
+                    bannerMaterial.SetTextureOffset("_BaseMap", bannerScrollOffset);
+                }
+            }
+        }
+
+        private void HandleStadiumSelected(StadiumType stadium)
+        {
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null && SaveManager.Instance.CurrentData.useCustomStadiumOverride)
+            {
+                ApplyVenue(stadium);
+            }
+            else if (GameManager.Instance != null && GameManager.Instance.CurrentRoundData != null)
+            {
+                ApplyVenue(GameManager.Instance.CurrentRoundData.stadiumTheme);
+            }
+        }
+
+        public void ApplyForRound(RoundDataSO roundData)
+        {
+            var data = SaveManager.Instance != null ? SaveManager.Instance.CurrentData : null;
+            if (data != null && data.useCustomStadiumOverride)
+            {
+                ApplyVenue(data.selectedStadium);
+            }
+            else if (roundData != null)
+            {
+                ApplyVenue(roundData.stadiumTheme);
+            }
+            else
+            {
+                ApplyVenue(StadiumType.Cantera);
             }
         }
 
         public void ApplyVenue(StadiumType venue)
         {
+            activeVenue = venue;
+
+            if (venueCantera != null) venueCantera.SetActive(venue == StadiumType.Cantera);
+            if (venueNight != null) venueNight.SetActive(venue == StadiumType.Night);
+            if (venueProfessional != null) venueProfessional.SetActive(venue == StadiumType.Professional);
+            if (venueWorldCup != null) venueWorldCup.SetActive(venue == StadiumType.WorldCup);
+
             Material targetGrass = venue switch
             {
-                StadiumType.Cantera      => matGrassCantera,
-                StadiumType.Night        => matGrassNight,
+                StadiumType.Cantera => matGrassCantera,
+                StadiumType.Night => matGrassNight,
                 StadiumType.Professional => matGrassPro,
-                StadiumType.WorldCup     => matGrassWorldCup,
-                _                        => matGrassCantera
+                StadiumType.WorldCup => matGrassWorldCup,
+                _ => matGrassCantera
             };
 
             if (pitchRenderer != null && targetGrass != null)
             {
-                pitchRenderer.material = targetGrass;
+                pitchRenderer.sharedMaterial = targetGrass;
             }
 
             ConfigureLighting(venue);
@@ -77,61 +135,97 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void ConfigureLighting(StadiumType venue)
         {
+            if (mainDirectionalLight == null)
+            {
+                GameObject sunObj = GameObject.Find("Directional Light");
+                if (sunObj != null) mainDirectionalLight = sunObj.GetComponent<Light>();
+            }
+
+            Camera cam = Camera.main;
+
             switch (venue)
             {
                 case StadiumType.Cantera:
-                    // Bright midday training session
-                    RenderSettings.ambientLight = new Color(0.6f, 0.65f, 0.7f);
+                    RenderSettings.ambientLight = new Color(0.62f, 0.68f, 0.75f);
+                    RenderSettings.fog = true;
+                    RenderSettings.fogColor = new Color(0.64f, 0.80f, 0.96f);
+                    RenderSettings.fogDensity = 0.0022f;
+                    if (cam != null)
+                    {
+                        cam.clearFlags = CameraClearFlags.SolidColor;
+                        cam.backgroundColor = new Color(0.45f, 0.72f, 0.95f);
+                    }
                     if (mainDirectionalLight != null)
                     {
                         mainDirectionalLight.enabled = true;
-                        mainDirectionalLight.color = new Color(1.0f, 0.98f, 0.92f);
-                        mainDirectionalLight.intensity = 1.3f;
-                        mainDirectionalLight.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+                        mainDirectionalLight.color = new Color(1.0f, 0.97f, 0.90f);
+                        mainDirectionalLight.intensity = 1.35f;
+                        mainDirectionalLight.transform.rotation = Quaternion.Euler(48f, -30f, 0f);
                     }
                     SetFloodlightsActive(false, 0f);
                     if (confettiSystem != null) confettiSystem.Stop();
                     break;
 
                 case StadiumType.Night:
-                    // Dramatic night match with intense 4-tower floodlighting
-                    RenderSettings.ambientLight = new Color(0.08f, 0.12f, 0.22f);
+                    RenderSettings.ambientLight = new Color(0.18f, 0.24f, 0.38f);
+                    RenderSettings.fog = true;
+                    RenderSettings.fogColor = new Color(0.03f, 0.06f, 0.14f);
+                    RenderSettings.fogDensity = 0.0038f;
+                    if (cam != null)
+                    {
+                        cam.clearFlags = CameraClearFlags.SolidColor;
+                        cam.backgroundColor = new Color(0.03f, 0.06f, 0.14f);
+                    }
                     if (mainDirectionalLight != null)
                     {
                         mainDirectionalLight.enabled = true;
-                        mainDirectionalLight.color = new Color(0.35f, 0.45f, 0.65f);
-                        mainDirectionalLight.intensity = 0.35f;
-                        mainDirectionalLight.transform.rotation = Quaternion.Euler(75f, 20f, 0f);
+                        mainDirectionalLight.color = new Color(0.65f, 0.78f, 1.0f);
+                        mainDirectionalLight.intensity = 0.75f;
+                        mainDirectionalLight.transform.rotation = Quaternion.Euler(65f, 25f, 0f);
                     }
-                    SetFloodlightsActive(true, 5.0f);
+                    SetFloodlightsActive(true, 45f);
                     if (confettiSystem != null) confettiSystem.Stop();
                     break;
 
                 case StadiumType.Professional:
-                    // Sunset / twilight match with vibrant stadium atmosphere
-                    RenderSettings.ambientLight = new Color(0.45f, 0.48f, 0.55f);
+                    RenderSettings.ambientLight = new Color(0.48f, 0.50f, 0.58f);
+                    RenderSettings.fog = true;
+                    RenderSettings.fogColor = new Color(0.24f, 0.34f, 0.54f);
+                    RenderSettings.fogDensity = 0.0025f;
+                    if (cam != null)
+                    {
+                        cam.clearFlags = CameraClearFlags.SolidColor;
+                        cam.backgroundColor = new Color(0.16f, 0.26f, 0.46f);
+                    }
                     if (mainDirectionalLight != null)
                     {
                         mainDirectionalLight.enabled = true;
-                        mainDirectionalLight.color = new Color(1.0f, 0.92f, 0.85f);
-                        mainDirectionalLight.intensity = 1.1f;
-                        mainDirectionalLight.transform.rotation = Quaternion.Euler(40f, -60f, 0f);
+                        mainDirectionalLight.color = new Color(1.0f, 0.90f, 0.78f);
+                        mainDirectionalLight.intensity = 1.2f;
+                        mainDirectionalLight.transform.rotation = Quaternion.Euler(36f, -55f, 0f);
                     }
-                    SetFloodlightsActive(true, 3.2f);
+                    SetFloodlightsActive(true, 28f);
                     if (confettiSystem != null) confettiSystem.Stop();
                     break;
 
                 case StadiumType.WorldCup:
-                    // Championship final: brilliant gold illumination and festive confetti
-                    RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.62f);
+                    RenderSettings.ambientLight = new Color(0.55f, 0.58f, 0.68f);
+                    RenderSettings.fog = true;
+                    RenderSettings.fogColor = new Color(0.07f, 0.14f, 0.30f);
+                    RenderSettings.fogDensity = 0.0022f;
+                    if (cam != null)
+                    {
+                        cam.clearFlags = CameraClearFlags.SolidColor;
+                        cam.backgroundColor = new Color(0.06f, 0.12f, 0.28f);
+                    }
                     if (mainDirectionalLight != null)
                     {
                         mainDirectionalLight.enabled = true;
                         mainDirectionalLight.color = new Color(1.0f, 0.96f, 0.88f);
                         mainDirectionalLight.intensity = 1.4f;
-                        mainDirectionalLight.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
+                        mainDirectionalLight.transform.rotation = Quaternion.Euler(52f, -32f, 0f);
                     }
-                    SetFloodlightsActive(true, 4.5f);
+                    SetFloodlightsActive(true, 38f);
                     if (confettiSystem != null && !confettiSystem.isPlaying)
                     {
                         confettiSystem.Play();
@@ -143,12 +237,12 @@ namespace UltimatePenaltyCup.Gameplay
         private void SetFloodlightsActive(bool active, float intensity)
         {
             if (floodlights == null) return;
-            foreach (var light in floodlights)
+            foreach (var l in floodlights)
             {
-                if (light != null)
+                if (l != null)
                 {
-                    light.enabled = active;
-                    light.intensity = intensity;
+                    l.enabled = active;
+                    l.intensity = intensity;
                 }
             }
         }
@@ -160,11 +254,10 @@ namespace UltimatePenaltyCup.Gameplay
                 Transform pitch = transform.Find("Pitch_Grass");
                 if (pitch != null) pitchRenderer = pitch.GetComponent<Renderer>();
             }
-
-            if (floodlights == null || floodlights.Length == 0)
-            {
-                floodlights = GetComponentsInChildren<Light>(true);
-            }
+            if (venueCantera == null) venueCantera = transform.Find("Venue_Cantera")?.gameObject;
+            if (venueNight == null) venueNight = transform.Find("Venue_Night")?.gameObject;
+            if (venueProfessional == null) venueProfessional = transform.Find("Venue_Professional")?.gameObject;
+            if (venueWorldCup == null) venueWorldCup = transform.Find("Venue_WorldCup")?.gameObject;
         }
     }
 }

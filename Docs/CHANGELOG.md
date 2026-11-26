@@ -1,49 +1,20 @@
-# Ultimate Penalty Cup 3D — Changelog
+# UltimatePenaltyCup3D — Historial de Cambios (CHANGELOG)
 
-## [v1.0.0] — 2026-11-25 — Initial Release
+## [1.0.0] — 2026-11-25 — Corrección Integral, Rediseño Visual y Finalización
 
-### Added
-- Complete Unity 6 URP project setup
-- 5-round penalty shootout progression system
-- Rubén González (#10) humanoid player character
-- Malágon AI goalkeeper with 5 difficulty levels
-- Procedural humanoid locomotion animations (walk, kick, celebrate, miss)
-- Goalkeeper AI: idle shuffle, reaction dive, full-body tilt, save deflection
-- Physics-accurate FIFA ball (0.43kg, bounciness 0.65)
-- 5 ball skins: Clásico, Azul, Fuego, Arcoíris, Dorado
-- 4 stadium environments: Cantera, Nocturno, Profesional, Mundial
-- Striped grass turf with regulation pitch lines (penalty box, goal box, arc, spot)
-- Multi-tier grandstands with LED perimeter advertising boards
-- 4 floodlight tower spotlights
-- Match HUD: power bar with gradient, 5 shot indicator circles, streak display
-- Main menu with logo, 6 navigation panels (Play, Shop, Customization, Achievements, Settings, Quit)
-- Round Select: 5 animated cards with lock/unlock system
-- Shop: separate tabs for balls and stadiums, buy/equip/owned states
-- Customization panel: equip unlocked balls and stadiums
-- Achievements panel: 7 achievements with unlock badges
-- Settings: music and SFX sliders
-- Save system: JSON via PlayerPrefs, persists coins, points, highscore, inventory, audio settings
-- CurrencyManager: coins & points, non-negative guard, highscore via match end only
-- ScoreManager: tiered scoring (Corner 200pts/150c, HighPower 150pts/125c, Normal 100pts/100c) + streak bonuses
-- AchievementManager: 7 achievements (FirstGoal, Sniper10, PerfectStreak, Champion, Millionaire, Collector, Legend)
-- AudioManager: procedural synthesized fallback audio (BGMs + SFX)
-- Confetti particle system for Round 5 champion celebration
-- BallController: VFX particle system per ball type, dynamic trail colours
-- StadiumController: dynamic lighting per venue (daylight/night/twilight/championship)
-- Secret dev code PENALTY2026 (+5,000 coins in debug builds)
-- Editor tools: ProjectSetupBuilder, CharacterAndStadiumUpgrader, GameBuildPipeline, GameSystemsTestRunner
-- Windows Standalone x64 build pipeline
-- Complete documentation suite (README, BUILD, CONTROLS, ARCHITECTURE, CHANGELOG)
+### Corregido (Funcionalidad y Jugabilidad)
+- **Inicio y progresión:** Eliminada la carga errónea o configuración faltante de rondas; `GameManager` recibe `roundConfigs` serializados directamente en `MainMenu.unity` y se respalda con `RoundManager`. `SampleScene.unity` excluida de compilación.
+- **Portero Malágon:** Agregados `Rigidbody` cinemático + `CapsuleCollider` corporal + `BoxCollider` en ambos guantes etiquetados `"Goalkeeper"`, orientación corregida mirando hacia el tirador (`180°` en Y en `z = -0.45f`), máquina de 8 estados (`Idle`, `Ready`, `Reacting`, `DivingLeft`, `DivingRight`, `Saving`, `Recovering`, `Resetting`) y detección continua en `FixedUpdate` para impedir que disparos veloces atraviesen al portero.
+- **Finalización anticipada de rondas:** `PenaltyManager` concluye la ronda inmediatamente al alcanzar `requiredGoals` (ej. `3/3` en Ronda 1 o `4/4` en Ronda 3) o cuando matemáticamente ya no es posible cumplir la meta (`GoalsScored + remainingAttempts < requiredGoals`), bloqueando controles de entrada y evitando duplicación de recompensas.
+- **Pantalla de fin de ronda:** `RoundEndUI` movido al objeto siempre activo `RoundEndManager` para garantizar su suscripción a `OnRoundEndedDetailed` al iniciar `MatchScene`. Se muestran correctamente las pantallas de **Victoria**, **Derrota** y **Gran Final** (Ronda 5).
+- **Logro *Racha Perfecta*:** Adaptado para desbloquearse con 4 goles consecutivos o al completar una ronda sin fallar ningún disparo (compatible con victoria anticipada), preservando logros previos.
 
-### Fixed
-- BallController.ResetBall: zeroes velocity before isKinematic = true (eliminates Unity 6 kinematic warning)
-- CurrencyManager.AddPoints: highScore now only updated at round end via SaveManager.UpdateHighScore()
-- RoundEndUI: missing `using UltimatePenaltyCup.SaveSystem` namespace directive
-- StadiumController: StadiumType enum values corrected (Night/Professional/WorldCup)
-- MatchHUD: txtStreak correctly hidden on Start, only shown for streak >= 2
+### Mejorado (3D, Física, Cámara y Escenarios)
+- **Personajes 3D unificados (`HumanoidMeshBuilder`):** Sustitución de primitivas desconectadas por mallas continuas `SkinnedMeshRenderer` de 17 huesos (`Mesh_RubenGonzalez` 1.80 m y `Mesh_GoalkeeperMalagon` 1.90 m), con separación estricta de materiales (`Mat_Skin_Body` en extremidades y `Mat_Face_*` únicamente en el rostro frontal). Corregido reflejo horizontal del dorsal `#10` en espalda.
+- **Proporciones FIFA y física:** Balón de `0.22 m` en `(0, 0.11, -11)`, portería de `7.32 × 2.44 × 2.0 m` con `GoalNetRipple` (deformación de malla de red al anotar), punto penal `0.18 m` y cámara deportiva `MatchCameraController` con seguimiento suave.
+- **4 Estadios diferenciados:** `Venue_Cantera` (diurno con gradas, vallas y árboles), `Venue_Night` (4 torres de reflectores y gradas nocturnas), `Venue_Professional` (gradas techadas, túnel, bancas y marcador) y `Venue_WorldCup` (macroestadio con pantallas gigantes, arco dorado, confeti y trofeo).
+- **Césped natural:** Texturas orgánicas con mapa normal `Tex_Grass_Normal` y franjas de corte reales (eliminado el patrón de ajedrez).
 
-### Technical Notes
-- Unity 6 (6000.6.4f1) + Universal Render Pipeline
-- InputSystem `activeInputHandler` = Both (legacy + new)
-- All scripts use `#pragma warning disable 0649` for clean 0-warning builds
-- TextMeshPro uses `textWrappingMode = TextWrappingModes.Normal` (Unity 6 API)
+### Rediseñado (UI/UX y Previsualizaciones 3D)
+- **Previsualizaciones 3D reales (`AssetPreviewRenderer`):** Renderizado en `RenderTexture` de los 5 balones y 4 estadios para Tienda, Personalización y Selección de Rondas (sin cuadrados planos de color).
+- **Rediseño integral de pantallas:** Menú principal sobre estadio en vivo, Selección de rondas en `HorizontalLayoutGroup`, Tienda y Personalización con pestañas independientes y vista previa lateral, Logros con barras de progreso reales, Opciones con controles reales de Audio/Sensibilidad/Resolución/Pantalla completa/Calidad sin superposición, Pausa con submenú de opciones y HUD deportivo con 5 indicadores circulares de penal.

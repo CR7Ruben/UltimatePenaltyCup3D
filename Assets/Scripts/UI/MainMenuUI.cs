@@ -39,9 +39,19 @@ namespace UltimatePenaltyCup.UI
 
         private void Start()
         {
+            Time.timeScale = 1f;
             SetupButtons();
             UpdateCurrencyUI();
-            ShowPanel(panelMainMenu);
+
+            if (GameManager.Instance != null && GameManager.Instance.RequestOpenAchievementsOnMenu)
+            {
+                GameManager.Instance.RequestOpenAchievementsOnMenu = false;
+                ShowPanel(panelAchievements);
+            }
+            else
+            {
+                ShowPanel(panelMainMenu);
+            }
 
             if (AudioManager.Instance != null)
             {
@@ -50,7 +60,7 @@ namespace UltimatePenaltyCup.UI
 
             if (CurrencyManager.Instance != null)
             {
-                CurrencyManager.Instance.OnCoinsChanged += (coins, delta) => UpdateCurrencyUI();
+                CurrencyManager.Instance.OnCoinsChanged += HandleCoinsChanged;
                 CurrencyManager.Instance.OnCodeAttempt += HandleCodeAttemptFeedback;
             }
         }
@@ -59,8 +69,14 @@ namespace UltimatePenaltyCup.UI
         {
             if (CurrencyManager.Instance != null)
             {
+                CurrencyManager.Instance.OnCoinsChanged -= HandleCoinsChanged;
                 CurrencyManager.Instance.OnCodeAttempt -= HandleCodeAttemptFeedback;
             }
+        }
+
+        private void HandleCoinsChanged(int coins, int delta)
+        {
+            UpdateCurrencyUI();
         }
 
         private void SetupButtons()

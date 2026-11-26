@@ -27,11 +27,12 @@ namespace UltimatePenaltyCup.Editor
             {
                 AssetDatabase.StartAssetEditing();
 
-                // 1. Grass & Pitch Textures
-                GenerateGrassTexture("Tex_Grass_Cantera", new Color(0.18f, 0.52f, 0.16f), new Color(0.22f, 0.58f, 0.20f), StripeType.Vertical);
-                GenerateGrassTexture("Tex_Grass_Night", new Color(0.08f, 0.32f, 0.12f), new Color(0.11f, 0.38f, 0.15f), StripeType.MownCheckers);
-                GenerateGrassTexture("Tex_Grass_Pro", new Color(0.12f, 0.62f, 0.22f), new Color(0.16f, 0.70f, 0.26f), StripeType.Striped);
-                GenerateGrassTexture("Tex_Grass_WorldCup", new Color(0.14f, 0.68f, 0.26f), new Color(0.18f, 0.76f, 0.32f), StripeType.MownCheckers);
+                // 1. Grass & Pitch Textures (Natural turf + normal map, NO checkerboard)
+                GenerateGrassTexture("Tex_Grass_Cantera", new Color(0.20f, 0.50f, 0.17f), new Color(0.24f, 0.56f, 0.21f), StripeType.SoftHorizontal);
+                GenerateGrassTexture("Tex_Grass_Night", new Color(0.11f, 0.36f, 0.14f), new Color(0.14f, 0.42f, 0.18f), StripeType.SoftHorizontal);
+                GenerateGrassTexture("Tex_Grass_Pro", new Color(0.15f, 0.54f, 0.20f), new Color(0.19f, 0.62f, 0.24f), StripeType.SoftHorizontal);
+                GenerateGrassTexture("Tex_Grass_WorldCup", new Color(0.14f, 0.58f, 0.22f), new Color(0.19f, 0.66f, 0.27f), StripeType.DualCross);
+                GenerateGrassNormalMap("Tex_Grass_Normal");
 
                 // 2. Goal Net Cutout Texture
                 GenerateGoalNetTexture("Tex_Goal_Net");
@@ -43,11 +44,12 @@ namespace UltimatePenaltyCup.Editor
                 GenerateRainbowBallTexture("Tex_Ball_Rainbow");
                 GenerateGoldBallTexture("Tex_Ball_Gold");
 
-                // 4. Kits & Characters
+                // 4. Kits & Characters (Strict separation: pure skin body vs frontal face vs front/back jerseys)
                 GeneratePlayerJerseyTexture("Tex_Jersey_Ruben");
                 GenerateGoalkeeperJerseyTexture("Tex_Jersey_Malagon");
-                GeneratePlayerFaceTexture("Tex_Face_Ruben", new Color(0.92f, 0.76f, 0.64f), new Color(0.18f, 0.12f, 0.08f));
-                GeneratePlayerFaceTexture("Tex_Face_Malagon", new Color(0.88f, 0.72f, 0.60f), new Color(0.12f, 0.10f, 0.08f));
+                GenerateSkinBodyTexture("Tex_Skin_Body", new Color(0.90f, 0.72f, 0.58f));
+                GeneratePlayerFaceTexture("Tex_Face_Ruben", new Color(0.90f, 0.72f, 0.58f), new Color(0.16f, 0.11f, 0.08f));
+                GeneratePlayerFaceTexture("Tex_Face_Malagon", new Color(0.84f, 0.66f, 0.52f), new Color(0.12f, 0.09f, 0.07f));
                 GenerateGlovesTexture("Tex_Gloves_Malagon");
 
                 // 5. Stadium Environment
@@ -72,7 +74,7 @@ namespace UltimatePenaltyCup.Editor
         }
 
         #region 1. Grass Textures
-        private enum StripeType { Striped, Vertical, MownCheckers }
+        private enum StripeType { SoftHorizontal, DualCross }
 
         private static void GenerateGrassTexture(string fileName, Color baseCol, Color stripeCol, StripeType type)
         {
@@ -84,31 +86,47 @@ namespace UltimatePenaltyCup.Editor
             {
                 for (int x = 0; x < width; x++)
                 {
-                    float factor = 0f;
-                    if (type == StripeType.Striped)
+                    float stripeVal = Mathf.Sin((float)y / height * Mathf.PI * 4f);
+                    float factor = Mathf.SmoothStep(0f, 1f, stripeVal * 0.5f + 0.5f);
+                    if (type == StripeType.DualCross)
                     {
-                        factor = Mathf.Sin((float)y / height * Mathf.PI * 16f) * 0.5f + 0.5f;
-                    }
-                    else if (type == StripeType.Vertical)
-                    {
-                        factor = Mathf.Sin((float)x / width * Mathf.PI * 16f) * 0.5f + 0.5f;
-                    }
-                    else // Checkers
-                    {
-                        bool cx = (x / 32) % 2 == 0;
-                        bool cy = (y / 32) % 2 == 0;
-                        factor = (cx ^ cy) ? 1f : 0f;
+                        float xVal = Mathf.Sin((float)x / width * Mathf.PI * 4f) * 0.5f + 0.5f;
+                        factor = factor * 0.72f + xVal * 0.28f;
                     }
 
                     Color c = Color.Lerp(baseCol, stripeCol, factor);
 
-                    // Add micro turf noise (grass blades)
-                    float noise = Mathf.PerlinNoise(x * 0.25f, y * 0.25f) * 0.14f - 0.07f;
-                    float speckle = (UnityEngine.Random.value - 0.5f) * 0.04f;
-                    c.r = Mathf.Clamp01(c.r + noise + speckle);
-                    c.g = Mathf.Clamp01(c.g + noise * 1.2f + speckle);
-                    c.b = Mathf.Clamp01(c.b + noise * 0.8f + speckle);
+                    // Multi-octave organic grass blade variation (non-repeating natural look)
+                    float macro = Mathf.PerlinNoise(x * 0.03f, y * 0.03f) * 0.07f - 0.035f;
+                    float mid = Mathf.PerlinNoise(x * 0.16f + 13.7f, y * 0.16f + 5.1f) * 0.06f - 0.03f;
+                    float blade = Mathf.PerlinNoise(x * 0.85f, y * 0.85f) * 0.08f - 0.04f;
 
+                    c.r = Mathf.Clamp01(c.r + macro + mid * 0.8f + blade * 0.6f);
+                    c.g = Mathf.Clamp01(c.g + macro * 1.1f + mid + blade);
+                    c.b = Mathf.Clamp01(c.b + macro * 0.7f + mid * 0.6f + blade * 0.5f);
+
+                    tex.SetPixel(x, y, c);
+                }
+            }
+            tex.Apply();
+            SaveTextureToFile(tex, fileName);
+        }
+
+        private static void GenerateGrassNormalMap(string fileName)
+        {
+            int size = 512;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float hL = Mathf.PerlinNoise((x - 1) * 0.75f, y * 0.75f);
+                    float hR = Mathf.PerlinNoise((x + 1) * 0.75f, y * 0.75f);
+                    float hD = Mathf.PerlinNoise(x * 0.75f, (y - 1) * 0.75f);
+                    float hU = Mathf.PerlinNoise(x * 0.75f, (y + 1) * 0.75f);
+
+                    Vector3 n = new Vector3((hL - hR) * 1.4f, (hD - hU) * 1.4f, 1.0f).normalized;
+                    Color c = new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, 1f);
                     tex.SetPixel(x, y, c);
                 }
             }
@@ -366,41 +384,61 @@ namespace UltimatePenaltyCup.Editor
             int height = 512;
             Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, true);
 
-            Color royalBlue = new Color(0.08f, 0.28f, 0.72f);
-            Color darkBlue = new Color(0.04f, 0.14f, 0.42f);
-            Color goldTrim = new Color(1.0f, 0.82f, 0.15f);
+            Color royalBlue = new Color(0.06f, 0.28f, 0.78f);
+            Color deepNavy = new Color(0.03f, 0.11f, 0.34f);
+            Color goldTrim = new Color(1.0f, 0.78f, 0.18f);
+            Color crispWhite = new Color(0.97f, 0.98f, 1.0f);
 
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Vertical athletic stripes
-                    bool isStripe = (x / 24) % 2 == 0;
-                    Color c = isStripe ? royalBlue : darkBlue;
+                    // Subtle diagonal athletic weave + center sash
+                    bool isDiagonal = ((x + y) / 36) % 2 == 0;
+                    Color c = Color.Lerp(royalBlue, deepNavy, isDiagonal ? 0.35f : 0.0f);
 
-                    // Gold collar and shoulders
-                    if (y > 440)
-                    {
-                        c = goldTrim;
-                    }
-                    // Gold side panels
-                    if (x < 30 || x > 482)
-                    {
-                        c = goldTrim;
-                    }
+                    // Top collar gold & navy rim
+                    if (y > 470) c = goldTrim;
+                    else if (y > 452) c = deepNavy;
 
-                    // Number 10 on back (center area x: 210..302, y: 180..320)
-                    if (x >= 210 && x <= 236 && y >= 190 && y <= 310) c = Color.white; // "1"
-                    if (x >= 260 && x <= 302 && y >= 190 && y <= 310)
-                    {
-                        // "0" outline
-                        if (x <= 270 || x >= 292 || y <= 205 || y >= 295) c = Color.white;
-                    }
+                    // Bottom hem gold stripe
+                    if (y < 22) c = goldTrim;
 
-                    // A&R Crest on chest (x: 120..160, y: 350..390)
-                    if (x >= 120 && x <= 160 && y >= 350 && y <= 390)
+                    // LEFT HALF (x: 0..255) = FRONT OF JERSEY
+                    if (x < 256)
                     {
-                        c = goldTrim;
+                        // Electric blue chest diagonal stripe
+                        if (Mathf.Abs((x - 128) - (y - 260) * 0.4f) < 18)
+                            c = Color.Lerp(c, goldTrim, 0.25f);
+
+                        // Gold A&R crest shield on left chest (x: 155..195, y: 310..365)
+                        if (x >= 158 && x <= 194 && y >= 312 && y <= 362)
+                        {
+                            bool border = x <= 162 || x >= 190 || y <= 316 || y >= 358;
+                            c = border ? goldTrim : deepNavy;
+                            if (x >= 171 && x <= 181 && y >= 325 && y <= 349) c = crispWhite;
+                        }
+                    }
+                    // RIGHT HALF (x: 256..511) = BACK OF JERSEY WITH CRISP #10
+                    else
+                    {
+                        int bx = x - 256; // 0..255 local back X
+                        // Number "10" centered on back (bx: 68..188, y: 150..350)
+                        // "1"
+                        bool isOne = (bx >= 76 && bx <= 98 && y >= 165 && y <= 335) ||
+                                     (bx >= 64 && bx <= 76 && y >= 305 && y <= 335);
+                        // "0"
+                        bool inOuterZero = bx >= 118 && bx <= 188 && y >= 165 && y <= 335;
+                        bool inInnerZero = bx >= 140 && bx <= 166 && y >= 190 && y <= 310;
+                        bool isZero = inOuterZero && !inInnerZero;
+
+                        if (isOne || isZero) c = crispWhite;
+
+                        // Gold trim box for player nameplate above number (y: 365..392)
+                        if (bx >= 75 && bx <= 181 && y >= 368 && y <= 390)
+                        {
+                            if ((bx / 10) % 2 == 0) c = goldTrim;
+                        }
                     }
 
                     tex.SetPixel(x, y, c);
@@ -416,29 +454,60 @@ namespace UltimatePenaltyCup.Editor
             int height = 512;
             Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, true);
 
-            Color brightOrange = new Color(1.0f, 0.45f, 0.05f);
-            Color darkCarbon = new Color(0.12f, 0.12f, 0.15f);
-            Color neonYellow = new Color(0.95f, 1.0f, 0.2f);
+            Color vibrantOrange = new Color(0.96f, 0.40f, 0.04f);
+            Color darkCharcoal = new Color(0.09f, 0.11f, 0.16f);
+            Color goldAccent = new Color(1.0f, 0.80f, 0.22f);
+            Color crispWhite = new Color(0.97f, 0.98f, 1.0f);
 
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Chevron pattern (V-shape)
-                    int chevron = Mathf.Abs((x - 256)) + y;
-                    bool isBand = (chevron / 28) % 2 == 0;
+                    int localX = x < 256 ? x : (x - 256);
+                    int chevron = Mathf.Abs(localX - 128) + y;
+                    bool isDarkBand = (chevron / 32) % 3 == 0;
+                    Color c = isDarkBand ? darkCharcoal : vibrantOrange;
 
-                    Color c = isBand ? brightOrange : darkCarbon;
+                    if (y > 468) c = darkCharcoal;
+                    if (y < 20) c = goldAccent;
 
-                    // Neon collar and sleeves
-                    if (y > 450 || x < 25 || x > 487)
+                    if (x < 256)
                     {
-                        c = neonYellow;
+                        // Front chest crest
+                        if (localX >= 158 && localX <= 194 && y >= 312 && y <= 362)
+                        {
+                            bool border = localX <= 162 || localX >= 190 || y <= 316 || y >= 358;
+                            c = border ? goldAccent : darkCharcoal;
+                        }
+                    }
+                    else
+                    {
+                        // Back of GK jersey: bold "#1" centered (localX: 108..148, y: 165..335)
+                        bool isOne = (localX >= 114 && localX <= 140 && y >= 165 && y <= 335) ||
+                                     (localX >= 98 && localX <= 114 && y >= 305 && y <= 335);
+                        if (isOne) c = crispWhite;
                     }
 
-                    // Goalkeeper "#1" on back
-                    if (x >= 244 && x <= 268 && y >= 190 && y <= 310) c = Color.white;
+                    tex.SetPixel(x, y, c);
+                }
+            }
+            tex.Apply();
+            SaveTextureToFile(tex, fileName);
+        }
 
+        private static void GenerateSkinBodyTexture(string fileName, Color skinTone)
+        {
+            int size = 128;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float n = (Mathf.PerlinNoise(x * 0.2f, y * 0.2f) - 0.5f) * 0.025f;
+                    Color c = new Color(
+                        Mathf.Clamp01(skinTone.r + n),
+                        Mathf.Clamp01(skinTone.g + n * 0.9f),
+                        Mathf.Clamp01(skinTone.b + n * 0.8f), 1f);
                     tex.SetPixel(x, y, c);
                 }
             }
@@ -457,31 +526,45 @@ namespace UltimatePenaltyCup.Editor
                 {
                     Color c = skinTone;
 
-                    // Hair on top
-                    if (y > 180)
+                    // Subtle cheek warmth
+                    float dCheekL = Vector2.Distance(new Vector2(x, y), new Vector2(78, 108));
+                    float dCheekR = Vector2.Distance(new Vector2(x, y), new Vector2(178, 108));
+                    if (dCheekL < 22f) c = Color.Lerp(c, new Color(0.95f, 0.58f, 0.52f), (1f - dCheekL / 22f) * 0.25f);
+                    if (dCheekR < 22f) c = Color.Lerp(c, new Color(0.95f, 0.58f, 0.52f), (1f - dCheekR / 22f) * 0.25f);
+
+                    // Eyebrows (clean curved arches)
+                    if ((x >= 72 && x <= 112 && y >= 149 && y <= 157) ||
+                        (x >= 144 && x <= 184 && y >= 149 && y <= 157))
                     {
                         c = hairTone;
                     }
 
-                    // Eyebrows (y: 135..145)
-                    bool leftBrow = x >= 65 && x <= 110 && y >= 135 && y <= 145;
-                    bool rightBrow = x >= 146 && x <= 191 && y >= 135 && y <= 145;
-                    if (leftBrow || rightBrow) c = hairTone;
-
-                    // Eyes (y: 115..128)
-                    bool leftEye = x >= 72 && x <= 103 && y >= 115 && y <= 128;
-                    bool rightEye = x >= 153 && x <= 184 && y >= 115 && y <= 128;
-                    if (leftEye || rightEye)
+                    // Expressive Eyes (left center 92,132 | right center 164,132)
+                    float dEyeL = Vector2.Distance(new Vector2(x, y), new Vector2(92, 132));
+                    float dEyeR = Vector2.Distance(new Vector2(x, y), new Vector2(164, 132));
+                    if (dEyeL < 12f || dEyeR < 12f)
                     {
-                        // Pupil
-                        bool isPupil = (x >= 82 && x <= 93) || (x >= 163 && x <= 174);
-                        c = isPupil ? new Color(0.1f, 0.08f, 0.05f) : Color.white;
+                        float d = Mathf.Min(dEyeL, dEyeR);
+                        c = d < 6.5f ? new Color(0.12f, 0.08f, 0.06f) : new Color(0.98f, 0.98f, 0.99f);
+                        // White glint dot
+                        if (Vector2.Distance(new Vector2(x, y), new Vector2(95, 135)) < 2.2f ||
+                            Vector2.Distance(new Vector2(x, y), new Vector2(167, 135)) < 2.2f)
+                        {
+                            c = Color.white;
+                        }
                     }
 
-                    // Mouth / Smile (y: 60..70)
-                    if (x >= 95 && x <= 161 && y >= 60 && y <= 68)
+                    // Soft nose bridge shadow
+                    if (x >= 122 && x <= 134 && y >= 102 && y <= 126)
                     {
-                        c = new Color(0.78f, 0.35f, 0.38f);
+                        c = Color.Lerp(c, skinTone * 0.85f, 0.5f);
+                    }
+
+                    // Confident athletic smile (y: 74..83)
+                    float smileCurve = Mathf.Pow((x - 128f) / 26f, 2f) * 5f;
+                    if (x >= 104 && x <= 152 && y >= (74 + smileCurve) && y <= (82 + smileCurve))
+                    {
+                        c = new Color(0.72f, 0.34f, 0.34f);
                     }
 
                     tex.SetPixel(x, y, c);
@@ -688,10 +771,17 @@ namespace UltimatePenaltyCup.Editor
                 TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
                 if (importer != null)
                 {
-                    importer.textureType = TextureImporterType.Default;
-                    importer.wrapMode = TextureWrapMode.Repeat;
+                    if (assetPath.Contains("Normal"))
+                    {
+                        importer.textureType = TextureImporterType.NormalMap;
+                    }
+                    else
+                    {
+                        importer.textureType = TextureImporterType.Default;
+                    }
+                    importer.wrapMode = (assetPath.Contains("Face") || assetPath.Contains("Jersey")) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
                     importer.filterMode = FilterMode.Bilinear;
-                    importer.anisoLevel = 4;
+                    importer.anisoLevel = 8;
                     if (assetPath.Contains("Net"))
                     {
                         importer.alphaIsTransparency = true;
@@ -706,22 +796,24 @@ namespace UltimatePenaltyCup.Editor
         #region 7. Apply to Materials
         public static void ApplyTexturesToAllMaterials()
         {
-            // Grass materials with realistic field tiling
-            ApplyTextureToMaterial("Assets/Materials/Mat_Grass_Cantera.mat", "Tex_Grass_Cantera.png", new Vector2(25f, 35f));
-            ApplyTextureToMaterial("Assets/Materials/Mat_Grass_Night.mat", "Tex_Grass_Night.png", new Vector2(25f, 35f));
-            ApplyTextureToMaterial("Assets/Materials/Mat_Grass_Pro.mat", "Tex_Grass_Pro.png", new Vector2(25f, 35f));
-            ApplyTextureToMaterial("Assets/Materials/Mat_Grass_WorldCup.mat", "Tex_Grass_WorldCup.png", new Vector2(25f, 35f));
+            // Grass materials with natural 6m mowing band tiling & grass normal map
+            Texture2D grassNormal = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/Tex_Grass_Normal.png");
+            ApplyGrassMaterial("Assets/Materials/Mat_Grass_Cantera.mat", "Tex_Grass_Cantera.png", grassNormal, new Vector2(6f, 8f));
+            ApplyGrassMaterial("Assets/Materials/Mat_Grass_Night.mat", "Tex_Grass_Night.png", grassNormal, new Vector2(6f, 8f));
+            ApplyGrassMaterial("Assets/Materials/Mat_Grass_Pro.mat", "Tex_Grass_Pro.png", grassNormal, new Vector2(6f, 8f));
+            ApplyGrassMaterial("Assets/Materials/Mat_Grass_WorldCup.mat", "Tex_Grass_WorldCup.png", grassNormal, new Vector2(6f, 8f));
 
-            // Net material with cutout alpha clipping
+            // Net material with double-sided cutout alpha clipping
             Material netMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Goal_Net.mat");
             Texture2D netTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/Tex_Goal_Net.png");
             if (netMat != null && netTex != null)
             {
                 netMat.mainTexture = netTex;
-                netMat.mainTextureScale = new Vector2(16f, 8f);
-                // Enable Alpha Clipping on URP Lit
+                netMat.mainTextureScale = new Vector2(14f, 6f);
+                if (netMat.HasProperty("_BaseMap")) netMat.SetTexture("_BaseMap", netTex);
                 if (netMat.HasProperty("_AlphaClip")) netMat.SetFloat("_AlphaClip", 1f);
-                if (netMat.HasProperty("_Cutoff")) netMat.SetFloat("_Cutoff", 0.5f);
+                if (netMat.HasProperty("_Cutoff")) netMat.SetFloat("_Cutoff", 0.35f);
+                if (netMat.HasProperty("_Cull")) netMat.SetFloat("_Cull", 0f); // Render both sides
                 netMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
                 EditorUtility.SetDirty(netMat);
             }
@@ -733,17 +825,40 @@ namespace UltimatePenaltyCup.Editor
             ApplyTextureToMaterial("Assets/Materials/Mat_Ball_Rainbow.mat", "Tex_Ball_Rainbow.png", Vector2.one);
             ApplyTextureToMaterial("Assets/Materials/Mat_Ball_Gold.mat", "Tex_Ball_Gold.png", Vector2.one);
 
-            // Kits & Characters
+            // Kits & Characters (Strict separation of body skin vs head face!)
             ApplyTextureToMaterial("Assets/Materials/Mat_Player_Kit.mat", "Tex_Jersey_Ruben.png", Vector2.one);
             ApplyTextureToMaterial("Assets/Materials/Mat_Goalkeeper_Kit.mat", "Tex_Jersey_Malagon.png", Vector2.one);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Skin.mat", "Tex_Skin_Body.png", Vector2.one);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Skin_Body.mat", "Tex_Skin_Body.png", Vector2.one);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Ruben.mat", "Tex_Face_Ruben.png", Vector2.one);
+            ApplyTextureToMaterial("Assets/Materials/Mat_Face_Malagon.mat", "Tex_Face_Malagon.png", Vector2.one);
+            ApplyTextureToMaterial("Assets/Materials/Mat_GK_Gloves.mat", "Tex_Gloves_Malagon.png", Vector2.one);
 
             // Stadium Surroundings
-            ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Banners.mat", "Tex_Stadium_Banners.png", new Vector2(10f, 1f));
-            ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Stands.mat", "Tex_Stadium_Crowd.png", new Vector2(15f, 4f));
+            ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Banners.mat", "Tex_Stadium_Banners.png", new Vector2(6f, 1f));
+            ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Stands.mat", "Tex_Stadium_Crowd.png", new Vector2(12f, 3f));
+            ApplyTextureToMaterial("Assets/Materials/Mat_Stadium_Concrete.mat", "Tex_Stadium_Stands.png", new Vector2(4f, 4f));
             ApplyTextureToMaterial("Assets/Materials/Mat_GoldTrophy.mat", "Tex_Trophy_Gold.png", new Vector2(2f, 2f));
 
             AssetDatabase.SaveAssets();
             Debug.Log("[GameTextureGenerator] All materials updated with high-resolution textures.");
+        }
+
+        private static void ApplyGrassMaterial(string matPath, string texName, Texture2D normalMap, Vector2 tiling)
+        {
+            ApplyTextureToMaterial(matPath, texName, tiling);
+            Material mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat != null && normalMap != null)
+            {
+                if (mat.HasProperty("_BumpMap"))
+                {
+                    mat.SetTexture("_BumpMap", normalMap);
+                    mat.SetFloat("_BumpScale", 0.35f);
+                    mat.EnableKeyword("_NORMALMAP");
+                }
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.14f);
+                EditorUtility.SetDirty(mat);
+            }
         }
 
         private static void ApplyTextureToMaterial(string matPath, string texName, Vector2 tiling)
@@ -755,6 +870,13 @@ namespace UltimatePenaltyCup.Editor
             {
                 mat.mainTexture = tex;
                 mat.mainTextureScale = tiling;
+                if (mat.HasProperty("_BaseMap"))
+                {
+                    mat.SetTexture("_BaseMap", tex);
+                    mat.SetTextureScale("_BaseMap", tiling);
+                }
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                mat.color = Color.white;
                 EditorUtility.SetDirty(mat);
             }
         }

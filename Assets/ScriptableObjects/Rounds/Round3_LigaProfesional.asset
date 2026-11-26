@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roundNumber: 3
   roundName: Liga Profesional
-  description: Tercera ronda. Estadio profesional. Necesitas anotar al menos 4 de 5 goles.
+  description: "Estadio profesional a m\xE1xima capacidad. Meta exigente: 4 de 5 penales."
   requiredGoals: 4
   maxAttempts: 5
-  winPoints: 500
-  winCoins: 500
+  winPoints: 650
+  winCoins: 650
   stadiumTheme: 2
   goalkeeperName: "Mal\xE1gon"
-  goalkeeperTypeTitle: Portero Avanzado
-  reactionDelay: 0.22
-  moveSpeed: 6
-  diveSpeed: 7.5
-  errorProbability: 0.15
+  goalkeeperTypeTitle: Portero Profesional
+  reactionDelay: 0.15
+  moveSpeed: 6.6
+  diveSpeed: 8.4
+  errorProbability: 0.2

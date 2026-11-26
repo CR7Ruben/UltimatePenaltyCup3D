@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stadiumType: 1
   displayName: Estadio Nocturno
-  description: "Atm\xF3sfera nocturna iluminada por reflectores de alta intensidad."
+  description: Arena nocturna iluminada por cuatro torres de reflectores.
   price: 2000
   skyColor: {r: 0.08, g: 0.12, b: 0.25, a: 1}
   equatorColor: {r: 0.3, g: 0.4, b: 0.5, a: 1}
   groundLightColor: {r: 0.15, g: 0.25, b: 0.15, a: 1}
   directionalLightColor: {r: 1, g: 1, b: 1, a: 1}
-  directionalLightIntensity: 0.9
+  directionalLightIntensity: 0.75
   lightRotation: {x: 50, y: -30, z: 0}
   grassMaterial: {fileID: 2100000, guid: f1c45f4a4bd8d1c4fb1cee81a0793af2, type: 2}
   bannerMaterial: {fileID: 0}
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: f023c20d0d502bc47ad9e4fa965e4ebb, type: 3}

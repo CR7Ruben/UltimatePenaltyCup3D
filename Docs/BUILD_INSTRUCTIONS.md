@@ -1,93 +1,59 @@
-# Ultimate Penalty Cup 3D — Build Instructions
+# UltimatePenaltyCup3D — Instrucciones de Compilación
 
-## Prerequisites
+## Requisitos previos
 
-- **Unity 6** (6000.6.4f1) installed via Unity Hub
-- Unity Hub install path: `D:\Program Files\Unity Hub\6000.6.4f1\Editor\Unity.exe`
-- Required packages (pre-installed):
-  - Universal Render Pipeline (URP)
-  - TextMeshPro
-  - Input System
-  - 2D Sprite
-
----
-
-## Build from Unity Editor
-
-1. Open Unity Hub → Open project: `D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D`
-2. Wait for compilation to finish (bottom status bar)
-3. Run the visual upgrade tool:
-   - **Menu**: `Ultimate Penalty Cup → Visual Upgrade → 05 - Run ALL Upgrades`
-4. Rebuild scenes:
-   - **Menu**: `Ultimate Penalty Cup → Execute Complete Project Setup`
-5. Build the game:
-   - **Menu**: `Ultimate Penalty Cup → Build Windows Standalone (x64)`
-6. Output: `Builds/Windows/UltimatePenaltyCup3D.exe`
+- **Unity 6 (`6000.6.4f1`)** instalado en Windows x64.
+- Ruta del editor utilizada en este proyecto: `D:\Program Files\Unity Hub\6000.6.4f1\Editor\Unity.exe`.
+- Paquetes activos (en `Packages/manifest.json`):
+  - Universal Render Pipeline (`com.unity.render-pipelines.universal` `17.6.0`)
+  - Input System (`com.unity.inputsystem` `1.20.0`)
+  - uGUI / TextMeshPro (`com.unity.ugui` `2.6.0`)
 
 ---
 
-## Automated Batch Build (PowerShell)
+## Compilación desde Unity Editor (GUI)
 
-Run the included PowerShell script from the project root:
+1. Abre el proyecto `D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D` en Unity 6.
+2. En el menú superior ejecuta:
+   - **`Ultimate Penalty Cup → Execute Complete Project Setup`**  
+     (Genera texturas, sprites de UI, materiales URP, mallas `SkinnedMesh` de 17 huesos, prefabs, previsualizaciones 3D reales, reconstruye `MainMenu.unity` y `MatchScene.unity`, y registra únicamente esas dos escenas en Build Settings con `MainMenu` en índice `0`).
+3. Ejecuta las pruebas del sistema:
+   - **`Ultimate Penalty Cup → Run All Automated System Tests`**
+4. Compila el ejecutable Windows x64:
+   - **`Ultimate Penalty Cup → Build Windows Standalone (x64)`**
+5. El ejecutable final queda en:
+   `Builds/Windows/UltimatePenaltyCup3D.exe`
+
+---
+
+## Compilación automatizada por línea de comandos (Batch Mode)
+
+> **Importante:** Cierra Unity Editor antes de lanzar comandos `-batchmode` sobre el mismo proyecto para evitar conflicto de bloqueo en `Temp/UnityLockfile`.  
+> **Nota sobre renderizado:** No agregues `-nographics` al ejecutar `ExecuteCompleteSetup`, `RenderAllPreviews` o `CaptureAllScreenshots`, ya que requieren contexto gráfico para renderizar los `RenderTexture`.
 
 ```powershell
-cd "D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D"
-powershell -ExecutionPolicy Bypass -File Build_Windows.ps1
+$Unity = "D:\Program Files\Unity Hub\6000.6.4f1\Editor\Unity.exe"
+$Proj  = "D:\Program Files\UltimatePenaltyCup3D\UltimatePenaltyCup3D"
+
+# 1. Reconstruir proyecto completo (con GPU activa para previews 3D)
+& $Unity -quit -batchmode -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.ProjectSetupBuilder.ExecuteCompleteSetup -logFile "$Proj\Logs\Setup.log"
+
+# 2. Ejecutar suite de pruebas automatizadas
+& $Unity -quit -batchmode -nographics -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.GameSystemsTestRunner.RunAllTests -logFile "$Proj\Logs\Tests.log"
+
+# 3. Capturar capturas de validación visual
+& $Unity -quit -batchmode -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.VisualValidationCapture.CaptureAllScreenshots -logFile "$Proj\Logs\Screenshots.log"
+
+# 4. Compilar ejecutable Windows x64
+& $Unity -quit -batchmode -nographics -projectPath $Proj -executeMethod UltimatePenaltyCup.Editor.GameBuildPipeline.BuildWindowsStandalone -logFile "$Proj\Logs\Build.log"
 ```
-
-This script runs all 4 phases headlessly:
-1. Project setup (materials, ScriptableObjects, prefabs)
-2. Visual character & stadium upgrades
-3. Match scene rebuild
-4. Windows x64 standalone build
-
-Logs are saved to `Logs/` for each phase.
 
 ---
 
-## Troubleshooting
+## Orden oficial de escenas (Build Settings)
 
-| Issue | Solution |
-|---|---|
-| "Scripts have compiler errors" | Open Unity Editor → check Console for errors |
-| Missing TextMeshPro assets | Window → TextMeshPro → Import TMP Essential Resources |
-| Build fails with license error | Ensure Unity license is activated (requires internet on first run) |
-| Black screen on start | Check that `MainMenu.unity` is Scene 0 in Build Settings |
-
----
-
-## Project Structure
-
-```
-Assets/
-  Art/
-    Logo/          ← Official game logo
-    Textures/      ← 16 PNG game textures
-    UI/            ← UI assets
-  Materials/       ← 18 URP materials
-  Prefabs/         ← 6 prefabs (Ball, Goal, Player, Goalkeeper, Stadium, Trophy)
-  ScriptableObjects/
-    Items/         ← Ball & Stadium shop items + Achievements
-    Rounds/        ← 5 round configurations
-  Scenes/
-    MainMenu.unity ← Scene 0
-    MatchScene.unity ← Scene 1
-  Scripts/
-    Core/          ← GameManager, GameStateManager, Enums
-    Player/        ← PlayerController, PlayerShooter
-    Goalkeeper/    ← GoalkeeperAI
-    Gameplay/      ← BallController, GoalDetector, PenaltyManager, MatchCameraController, StadiumController
-    Economy/       ← CurrencyManager, ScoreManager
-    SaveSystem/    ← SaveManager, SaveData
-    Shop/          ← ShopManager, BallItemSO, StadiumItemSO
-    Customization/ ← CustomizationManager
-    Achievements/  ← AchievementManager, AchievementSO
-    Audio/         ← AudioManager
-    Levels/        ← RoundManager, RoundDataSO
-    UI/            ← All UI classes
-    Editor/        ← ProjectSetupBuilder, CharacterAndStadiumUpgrader, GameBuildPipeline, GameSystemsTestRunner
-Builds/
-  Windows/         ← Output EXE
-Docs/              ← Documentation
-Logs/              ← Build & setup logs
-```
+| Índice | Escena | Incluida |
+|---|---|---|
+| `0` | `Assets/Scenes/MainMenu.unity` | Sí |
+| `1` | `Assets/Scenes/MatchScene.unity` | Sí |
+| — | `Assets/Scenes/SampleScene.unity` | Excluida |

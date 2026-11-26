@@ -23,12 +23,24 @@ namespace UltimatePenaltyCup.Levels
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            SyncToGameManager();
+        }
+
+        private void Start()
+        {
+            SyncToGameManager();
         }
 
         public void SetRounds(List<RoundDataSO> roundList)
         {
             rounds = roundList;
-            if (GameManager.Instance != null && rounds != null)
+            SyncToGameManager();
+        }
+
+        private void SyncToGameManager()
+        {
+            if (GameManager.Instance != null && rounds != null && rounds.Count > 0)
             {
                 GameManager.Instance.SetRoundConfigs(rounds.ToArray());
             }

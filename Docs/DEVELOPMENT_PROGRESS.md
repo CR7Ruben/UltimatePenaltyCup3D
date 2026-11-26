@@ -1,101 +1,21 @@
-# Ultimate Penalty Cup 3D — Development Progress
+# UltimatePenaltyCup3D — Progreso del Desarrollo
 
-**Studio**: A&R Game Labs
-**Developers**: Rubén González & Xitzia Aimara Fierro Rivera
-**Last Updated**: 2026-11-25
+**Estudio:** A&R Game Labs  
+**Última actualización:** 2026-11-25
 
 ---
 
-## Phase Summary
+## Estado de las fases
 
-| Phase | Description | Status |
+| Fase | Descripción | Estado |
 |---|---|---|
-| **Phase 0** | Project creation, Unity 6 setup, URP configuration | ✅ Complete |
-| **Phase 1** | Core architecture — enums, managers, save system | ✅ Complete |
-| **Phase 2** | Gameplay — player, goalkeeper, ball, goal, penalty system | ✅ Complete |
-| **Phase 3** | Economy — coins, points, scoring tiers, streak bonuses | ✅ Complete |
-| **Phase 4** | Shop & customization — 5 balls, 4 stadiums, equip system | ✅ Complete |
-| **Phase 5** | Achievements — 7 achievements with reward system | ✅ Complete |
-| **Phase 6** | Audio — procedural synthesized fallback BGM + SFX | ✅ Complete |
-| **Phase 7** | UI — Main menu, HUD, shop, customization, settings, pause, round end | ✅ Complete |
-| **Phase 8** | Textures — 16 PNG textures generated and mapped to materials | ✅ Complete |
-| **Phase 9** | Bug fixes — kinematic velocity, highscore, namespace errors | ✅ Complete |
-| **Phase 10** | Visual upgrades — humanoid characters, stadium, ball VFX | ✅ Complete |
-| **Phase 11** | Build pipeline — batch build script, Windows x64 standalone | ✅ Complete |
-| **Phase 12** | Documentation — 11 markdown documents | ✅ Complete |
-
----
-
-## Script Inventory (39 C# files)
-
-### Core (3)
-- `GameEnums.cs` — All game enumerations
-- `GameManager.cs` — DontDestroyOnLoad coordinator
-- `GameStateManager.cs` — UI state transitions
-
-### Player (2)
-- `PlayerController.cs` — WASD movement, procedural walk/kick/celebrate animations
-- `PlayerShooter.cs` — Mouse aim, charge bar, physics launch
-
-### Goalkeeper (1)
-- `GoalkeeperAI.cs` — 5-level difficulty, idle shuffle, reaction dive, save celebration
-
-### Gameplay (5)
-- `BallController.cs` — FIFA physics, material switching, VFX particles, trail
-- `GoalDetector.cs` — Trigger detection, corner/precision threshold
-- `PenaltyManager.cs` — 5-attempt state machine, shot evaluation
-- `MatchCameraController.cs` — Dynamic 3rd-person camera, FOV tracking
-- `StadiumController.cs` — 4-venue lighting/grass configuration
-
-### Economy (2)
-- `CurrencyManager.cs` — Coins/points transactions, dev code
-- `ScoreManager.cs` — Tiered scoring, streak bonuses
-
-### Save System (2)
-- `SaveData.cs` — Serializable save data class
-- `SaveManager.cs` — JSON/PlayerPrefs persistence
-
-### Shop (3)
-- `ShopManager.cs` — Purchase logic
-- `BallItemSO.cs` — Ball item ScriptableObject
-- `StadiumItemSO.cs` — Stadium item ScriptableObject
-
-### Customization (1)
-- `CustomizationManager.cs` — Runtime ball/stadium equipping
-
-### Achievements (2)
-- `AchievementManager.cs` — Achievement tracking and unlock
-- `AchievementSO.cs` — Achievement ScriptableObject
-
-### Audio (1)
-- `AudioManager.cs` — BGM + SFX with procedural synthesis fallback
-
-### Levels (2)
-- `RoundManager.cs` — Round progression
-- `RoundDataSO.cs` — Round configuration ScriptableObject
-
-### UI (10)
-- `MainMenuUI.cs`, `MatchHUD.cs`, `RoundSelectUI.cs`, `ShopUI.cs`
-- `ShopItemCardUI.cs`, `CustomizationUI.cs`, `AchievementsUI.cs`
-- `PauseUI.cs`, `RoundEndUI.cs`, `SettingsUI.cs`
-
-### Editor (4)
-- `ProjectSetupBuilder.cs` — Automated project setup
-- `CharacterAndStadiumUpgrader.cs` — Visual upgrade tool
-- `GameBuildPipeline.cs` — Windows standalone builder
-- `GameSystemsTestRunner.cs` — Automated unit tests
-- `GameTextureGenerator.cs` — Texture and material mapper
-
----
-
-## Asset Inventory
-
-| Category | Count | Details |
-|---|---|---|
-| C# Scripts | 39 | See above |
-| PNG Textures | 16 | Grass(4), Balls(5), Jerseys(2), Face, Net, Stadium(2), Trophy |
-| URP Materials | 18 | All textured and configured |
-| Prefabs | 6 | Ball, Goal, Player, Goalkeeper, Stadium, Trophy |
-| Scenes | 3 | MainMenu, MatchScene, SampleScene |
-| ScriptableObjects | 16 | 5 Rounds, 5 Balls, 4 Stadiums, 7 Achievements |
-| Documentation | 11 | Complete markdown suite |
+| **Fase 1** | Auditoría, respaldo Git (`32b63c7`) y diagnóstico raíz | ✅ Completada |
+| **Fase 2** | Inicio en `MainMenu`, IA del portero (8 estados + física), fin anticipado y progresión de rondas 1–5 | ✅ Código implementado y compilado |
+| **Fase 3** | Proporciones FIFA (`0.22 m`, `7.32×2.44 m`, `11 m`), `MatchCameraController` y retícula/curva de disparo | ✅ Implementado y compilado |
+| **Fase 4** | Modelos 3D unificados `SkinnedMesh` (17 huesos) y animaciones articuladas | ✅ Implementado (pendiente re-exportar última corrección de UV dorsal) |
+| **Fase 5** | Césped natural + normal map, portería con `GoalNetRipple` y 4 estadios diferenciados | ✅ Implementado y reconstruido en `FullSetup2` |
+| **Fase 6** | Rediseño UI/UX integral + vistas previas 3D reales (`AssetPreviewRenderer`) | ✅ Implementado (pendiente re-generar últimos ajustes UI tras cerrar Editor) |
+| **Fase 7** | Economía, opciones reales, logros adaptados y retrocompatibilidad `SaveData` | ✅ Implementado |
+| **Fase 8** | Pruebas automatizadas y 14 capturas `1920×1080` inspeccionadas | ⚠️ 7/13 previo al fix Edit Mode + 14 capturas auditadas; re-ejecución bloqueada por Editor abierto |
+| **Fase 9** | Nueva compilación Windows x64 (`Builds/Windows/UltimatePenaltyCup3D.exe`) | ⏳ Pendiente de liberar bloqueo de Unity Editor (`PID 19884`) |
+| **Fase 10** | Documentación completa en `Docs/` (11 archivos) y commits locales | ✅ Completada |

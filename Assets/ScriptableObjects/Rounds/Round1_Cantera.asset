@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roundNumber: 1
   roundName: Cantera
-  description: Tutorial inicial. Aprende el apuntado y la potencia frente a un portero novato.
+  description: "Estadio de entrenamiento. Anota 3 goles en un m\xE1ximo de 5 intentos para avanzar."
   requiredGoals: 3
   maxAttempts: 5
   winPoints: 500
   winCoins: 300
   stadiumTheme: 0
   goalkeeperName: "Mal\xE1gon"
-  goalkeeperTypeTitle: "Portero B\xE1sico"
-  reactionDelay: 0.38
-  moveSpeed: 3.5
-  diveSpeed: 4
-  errorProbability: 0.35
+  goalkeeperTypeTitle: Portero Principiante
+  reactionDelay: 0.24
+  moveSpeed: 4.2
+  diveSpeed: 5.2
+  errorProbability: 0.42

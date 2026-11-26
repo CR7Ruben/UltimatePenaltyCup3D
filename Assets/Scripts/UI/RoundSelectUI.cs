@@ -1,12 +1,11 @@
 #pragma warning disable 0649
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UltimatePenaltyCup.Core;
 using UltimatePenaltyCup.Levels;
 using UltimatePenaltyCup.SaveSystem;
+using UltimatePenaltyCup.Shop;
 using UltimatePenaltyCup.Audio;
 
 namespace UltimatePenaltyCup.UI
@@ -18,12 +17,16 @@ namespace UltimatePenaltyCup.UI
         {
             public int roundNumber;
             public GameObject cardObject;
+            public Image imgStadiumPreview;
             public TMP_Text txtTitle;
+            public TMP_Text txtDifficulty;
             public TMP_Text txtDescription;
             public TMP_Text txtTarget;
             public TMP_Text txtRewards;
             public GameObject lockOverlay;
+            public TMP_Text txtLockReason;
             public Button btnPlay;
+            public TMP_Text txtBtnPlay;
         }
 
         [Header("Round Cards (1 to 5)")]
@@ -75,24 +78,46 @@ namespace UltimatePenaltyCup.UI
             foreach (var card in roundCards)
             {
                 bool isUnlocked = SaveManager.Instance != null && SaveManager.Instance.IsRoundUnlocked(card.roundNumber);
-                RoundDataSO data = GameManager.Instance != null ? GameManager.Instance.GetRoundData(card.roundNumber) : null;
+                RoundDataSO data = GameManager.Instance != null
+                    ? GameManager.Instance.GetRoundData(card.roundNumber)
+                    : (RoundManager.Instance != null ? RoundManager.Instance.GetRound(card.roundNumber) : null);
 
                 if (card.lockOverlay != null)
                 {
                     card.lockOverlay.SetActive(!isUnlocked);
                 }
 
+                if (card.txtLockReason != null)
+                {
+                    card.txtLockReason.text = card.roundNumber > 1 ? $"Supera Ronda {card.roundNumber - 1}" : "Bloqueado";
+                }
+
                 if (card.btnPlay != null)
                 {
                     card.btnPlay.interactable = isUnlocked;
+                    if (card.txtBtnPlay != null)
+                    {
+                        card.txtBtnPlay.text = isUnlocked ? "JUGAR RONDA" : "BLOQUEADA";
+                    }
                 }
 
                 if (data != null)
                 {
-                    if (card.txtTitle != null) card.txtTitle.text = $"Ronda {data.roundNumber}: {data.roundName}";
+                    if (card.txtTitle != null) card.txtTitle.text = $"RONDA {data.roundNumber}\n{data.roundName.ToUpper()}";
+                    if (card.txtDifficulty != null) card.txtDifficulty.text = $"IA: {data.goalkeeperTypeTitle}";
                     if (card.txtDescription != null) card.txtDescription.text = data.description;
-                    if (card.txtTarget != null) card.txtTarget.text = $"Objetivo: {data.requiredGoals} de {data.maxAttempts} goles";
-                    if (card.txtRewards != null) card.txtRewards.text = $"+{data.winCoins} Monedas | +{data.winPoints} Pts";
+                    if (card.txtTarget != null) card.txtTarget.text = $"Meta: {data.requiredGoals} / {data.maxAttempts} goles";
+                    if (card.txtRewards != null) card.txtRewards.text = $"+{data.winCoins:N0} Monedas";
+
+                    if (card.imgStadiumPreview != null && ShopManager.Instance != null)
+                    {
+                        StadiumItemSO stadium = ShopManager.Instance.GetStadiumItem(data.stadiumTheme);
+                        if (stadium != null && stadium.icon != null)
+                        {
+                            card.imgStadiumPreview.sprite = stadium.icon;
+                            card.imgStadiumPreview.color = isUnlocked ? Color.white : new Color(0.45f, 0.48f, 0.55f, 1f);
+                        }
+                    }
                 }
             }
         }

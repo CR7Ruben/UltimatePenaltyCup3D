@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roundNumber: 5
   roundName: Gran Final
-  description: "\xA1El campeonato est\xE1 en juego! Solo los disparos colocados a la escuadra vencer\xE1n al portero campe\xF3n."
+  description: "\xA1El t\xEDtulo en juego! Supera al Mal\xE1gon de \xE9lite con 4 goles en el Estadio Mundial."
   requiredGoals: 4
   maxAttempts: 5
-  winPoints: 500
-  winCoins: 1000
+  winPoints: 1200
+  winCoins: 1500
   stadiumTheme: 3
   goalkeeperName: "Mal\xE1gon"
-  goalkeeperTypeTitle: "Portero Campe\xF3n"
-  reactionDelay: 0.1
+  goalkeeperTypeTitle: "Portero \xC9lite"
+  reactionDelay: 0.08
   moveSpeed: 9
-  diveSpeed: 12
-  errorProbability: 0.02
+  diveSpeed: 11.6
+  errorProbability: 0.06

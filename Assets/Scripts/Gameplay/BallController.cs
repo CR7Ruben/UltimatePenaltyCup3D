@@ -29,7 +29,10 @@ namespace UltimatePenaltyCup.Gameplay
         [SerializeField] private Material matGold;
 
         public bool HasBeenShot { get; private set; } = false;
-        public Vector3 InitialPosition { get; private set; } = new Vector3(0f, 0.15f, -11f);
+        public bool WasSavedByGoalkeeper { get; private set; } = false;
+        public bool HitPost { get; private set; } = false;
+        public Vector3 InitialPosition { get; private set; } = new Vector3(0f, 0.11f, -11f);
+        public Vector3 Velocity => rb != null ? rb.linearVelocity : Vector3.zero;
 
         public event Action<Collision> OnBallCollision;
 
@@ -163,10 +166,17 @@ namespace UltimatePenaltyCup.Gameplay
             AudioManager.Instance?.PlaySfx(SfxType.S01_Kick);
         }
 
+        public void MarkSavedByGoalkeeper()
+        {
+            WasSavedByGoalkeeper = true;
+        }
+
         public void ResetBall(Vector3 position)
         {
             InitialPosition = position;
             HasBeenShot = false;
+            WasSavedByGoalkeeper = false;
+            HitPost = false;
 
             if (rb != null)
             {
@@ -200,7 +210,9 @@ namespace UltimatePenaltyCup.Gameplay
 
             if (collision.gameObject.CompareTag("Post"))
             {
+                HitPost = true;
                 AudioManager.Instance?.PlaySfx(SfxType.PostHit);
+                PenaltyManager.Instance?.NotifyPostHit();
             }
             else if (collision.gameObject.CompareTag("Goalkeeper"))
             {

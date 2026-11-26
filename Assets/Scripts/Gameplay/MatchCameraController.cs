@@ -1,5 +1,4 @@
 #pragma warning disable 0649
-using System.Collections;
 using UnityEngine;
 
 namespace UltimatePenaltyCup.Gameplay
@@ -8,18 +7,18 @@ namespace UltimatePenaltyCup.Gameplay
     {
         public static MatchCameraController Instance { get; private set; }
 
-        [Header("Camera Positions")]
-        [SerializeField] private Vector3 aimingPosition = new Vector3(0f, 2.7f, -16.4f);
-        [SerializeField] private Vector3 aimingRotation = new Vector3(8.5f, 0f, 0f);
+        [Header("Broadcast Penalty Framing")]
+        [SerializeField] private Vector3 aimingPosition = new Vector3(0.55f, 2.05f, -15.4f);
+        [SerializeField] private Vector3 aimingLookTarget = new Vector3(0f, 1.25f, 0f);
+        [SerializeField] private Vector3 trackingDollyOffset = new Vector3(0f, 0.15f, 1.4f);
 
-        [SerializeField] private float followSpeed = 6.0f;
-        [SerializeField] private float aimFov = 55f;
-        [SerializeField] private float actionFov = 50f;
+        [SerializeField] private float followSpeed = 4.5f;
+        [SerializeField] private float aimFov = 46f;
+        [SerializeField] private float actionFov = 41f;
 
         private Camera cam;
         private bool isTrackingBall = false;
         private Transform ballTransform;
-        private Vector3 startLocalPos;
 
         private void Awake()
         {
@@ -34,13 +33,26 @@ namespace UltimatePenaltyCup.Gameplay
 
             if (PenaltyManager.Instance != null)
             {
-                PenaltyManager.Instance.OnAttemptStarted += (att, max) => ResetCameraToKicker();
+                PenaltyManager.Instance.OnAttemptStarted += HandleAttemptStarted;
             }
 
             if (BallController.Instance != null)
             {
                 ballTransform = BallController.Instance.transform;
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (PenaltyManager.Instance != null)
+            {
+                PenaltyManager.Instance.OnAttemptStarted -= HandleAttemptStarted;
+            }
+        }
+
+        private void HandleAttemptStarted(int attempt, int max)
+        {
+            ResetCameraToKicker();
         }
 
         public void StartTrackingShot()
@@ -54,18 +66,22 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void LateUpdate()
         {
-            if (isTrackingBall && ballTransform != null)
-            {
-                // Smoothly look towards the ball in flight with dynamic framing
-                Vector3 toBall = ballTransform.position - transform.position;
-                Quaternion targetRot = Quaternion.LookRotation(toBall);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * followSpeed);
+            if (!isTrackingBall || ballTransform == null) return;
 
-                // Subtle FOV zoom
-                if (cam != null)
-                {
-                    cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, actionFov, Time.deltaTime * 3f);
-                }
+            Vector3 targetPos = aimingPosition + trackingDollyOffset;
+            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * 2.2f);
+
+            // Clamped tracking between goal center and ball so framing never turns violently away from goal
+            Vector3 lookPoint = Vector3.Lerp(aimingLookTarget, ballTransform.position, 0.55f);
+            lookPoint.y = Mathf.Clamp(lookPoint.y, 0.5f, 2.8f);
+            lookPoint.x = Mathf.Clamp(lookPoint.x, -4.5f, 4.5f);
+
+            Quaternion targetRot = Quaternion.LookRotation(lookPoint - transform.position);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * followSpeed);
+
+            if (cam != null)
+            {
+                cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, actionFov, Time.deltaTime * 2.8f);
             }
         }
 
@@ -73,7 +89,7 @@ namespace UltimatePenaltyCup.Gameplay
         {
             isTrackingBall = false;
             transform.position = aimingPosition;
-            transform.rotation = Quaternion.Euler(aimingRotation);
+            transform.LookAt(aimingLookTarget);
 
             if (cam != null)
             {

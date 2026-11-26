@@ -1,14 +1,10 @@
 #pragma warning disable 0649
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UltimatePenaltyCup.Core;
 using UltimatePenaltyCup.Shop;
-using UltimatePenaltyCup.SaveSystem;
 using UltimatePenaltyCup.Economy;
-using UltimatePenaltyCup.Customization;
 using UltimatePenaltyCup.Audio;
 
 namespace UltimatePenaltyCup.UI
@@ -34,7 +30,7 @@ namespace UltimatePenaltyCup.UI
         private void OnEnable()
         {
             UpdateCoins();
-            SwitchTab(true);
+            SwitchTab(true, silent: true);
             RefreshAllCards();
         }
 
@@ -54,22 +50,57 @@ namespace UltimatePenaltyCup.UI
 
             if (ShopManager.Instance != null)
             {
-                ShopManager.Instance.OnBallPurchased += (ball) => { RefreshAllCards(); ShowFeedback($"¡Has comprado {ball.displayName}!", true); };
-                ShopManager.Instance.OnStadiumPurchased += (stadium) => { RefreshAllCards(); ShowFeedback($"¡Has comprado {stadium.displayName}!", true); };
-                ShopManager.Instance.OnPurchaseFailed += (err) => ShowFeedback(err, false);
+                ShopManager.Instance.OnBallPurchased += HandleBallPurchased;
+                ShopManager.Instance.OnStadiumPurchased += HandleStadiumPurchased;
+                ShopManager.Instance.OnPurchaseFailed += HandlePurchaseFailed;
             }
 
             if (CurrencyManager.Instance != null)
             {
-                CurrencyManager.Instance.OnCoinsChanged += (c, d) => UpdateCoins();
+                CurrencyManager.Instance.OnCoinsChanged += HandleCoinsChanged;
             }
         }
 
-        public void SwitchTab(bool showBalls)
+        private void OnDestroy()
         {
-            AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
+            if (ShopManager.Instance != null)
+            {
+                ShopManager.Instance.OnBallPurchased -= HandleBallPurchased;
+                ShopManager.Instance.OnStadiumPurchased -= HandleStadiumPurchased;
+                ShopManager.Instance.OnPurchaseFailed -= HandlePurchaseFailed;
+            }
+            if (CurrencyManager.Instance != null)
+            {
+                CurrencyManager.Instance.OnCoinsChanged -= HandleCoinsChanged;
+            }
+        }
+
+        private void HandleBallPurchased(BallItemSO ball)
+        {
+            RefreshAllCards();
+            ShowFeedback($"¡Has comprado {ball.displayName}!", true);
+        }
+
+        private void HandleStadiumPurchased(StadiumItemSO stadium)
+        {
+            RefreshAllCards();
+            ShowFeedback($"¡Has comprado {stadium.displayName}!", true);
+        }
+
+        private void HandlePurchaseFailed(string err) => ShowFeedback(err, false);
+        private void HandleCoinsChanged(int c, int d) => UpdateCoins();
+
+        public void SwitchTab(bool showBalls, bool silent = false)
+        {
+            if (!silent) AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
             if (panelBallsList != null) panelBallsList.SetActive(showBalls);
             if (panelStadiumsList != null) panelStadiumsList.SetActive(!showBalls);
+
+            if (btnTabBalls != null)
+                btnTabBalls.GetComponent<Image>().color = showBalls ? new Color(0.08f, 0.49f, 1.0f) : new Color(0.10f, 0.17f, 0.30f);
+            if (btnTabStadiums != null)
+                btnTabStadiums.GetComponent<Image>().color = !showBalls ? new Color(0.08f, 0.49f, 1.0f) : new Color(0.10f, 0.17f, 0.30f);
+
             RefreshAllCards();
         }
 
@@ -85,18 +116,11 @@ namespace UltimatePenaltyCup.UI
         public void RefreshAllCards()
         {
             UpdateCoins();
-            // Refreshes UI cards for balls and stadiums
             var ballCards = ballsContainer != null ? ballsContainer.GetComponentsInChildren<ShopItemCardUI>(true) : Array.Empty<ShopItemCardUI>();
-            foreach (var card in ballCards)
-            {
-                card.Refresh();
-            }
+            foreach (var card in ballCards) card.Refresh();
 
             var stadiumCards = stadiumsContainer != null ? stadiumsContainer.GetComponentsInChildren<ShopItemCardUI>(true) : Array.Empty<ShopItemCardUI>();
-            foreach (var card in stadiumCards)
-            {
-                card.Refresh();
-            }
+            foreach (var card in stadiumCards) card.Refresh();
         }
 
         public void ShowFeedback(string message, bool success)
@@ -105,7 +129,7 @@ namespace UltimatePenaltyCup.UI
             {
                 txtFeedback.gameObject.SetActive(true);
                 txtFeedback.text = message;
-                txtFeedback.color = success ? Color.green : new Color(1f, 0.35f, 0.35f);
+                txtFeedback.color = success ? new Color(0.15f, 0.80f, 0.45f) : new Color(0.90f, 0.28f, 0.30f);
                 CancelInvoke(nameof(HideFeedback));
                 Invoke(nameof(HideFeedback), 2.5f);
             }

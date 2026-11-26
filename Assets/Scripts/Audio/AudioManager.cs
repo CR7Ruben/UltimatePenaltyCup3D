@@ -21,7 +21,10 @@ namespace UltimatePenaltyCup.Audio
         S04_Purchase,
         S05_Unlock,
         S06_ButtonClick,
-        PostHit
+        PostHit,
+        Whistle,
+        Miss,
+        CrowdAmbient
     }
 
     public class AudioManager : MonoBehaviour
@@ -45,6 +48,9 @@ namespace UltimatePenaltyCup.Audio
         [SerializeField] private AudioClip sfxUnlock;
         [SerializeField] private AudioClip sfxButtonClick;
         [SerializeField] private AudioClip sfxPostHit;
+        [SerializeField] private AudioClip sfxWhistle;
+        [SerializeField] private AudioClip sfxMiss;
+        [SerializeField] private AudioClip sfxCrowd;
 
         private AudioClip procKick;
         private AudioClip procGoal;
@@ -53,11 +59,15 @@ namespace UltimatePenaltyCup.Audio
         private AudioClip procUnlock;
         private AudioClip procButtonClick;
         private AudioClip procPostHit;
+        private AudioClip procWhistle;
+        private AudioClip procMiss;
+        private AudioClip procCrowd;
         private AudioClip procBgmMenu;
         private AudioClip procBgmMatch;
         private AudioClip procBgmVictory;
         private AudioClip procBgmDefeat;
 
+        public float MasterVolume { get; private set; } = 1.0f;
         public float MusicVolume { get; private set; } = 0.8f;
         public float SfxVolume { get; private set; } = 0.9f;
 
@@ -97,13 +107,29 @@ namespace UltimatePenaltyCup.Audio
         {
             if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
             {
-                SetMusicVolume(SaveManager.Instance.CurrentData.musicVolume);
-                SetSfxVolume(SaveManager.Instance.CurrentData.sfxVolume);
+                MasterVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.masterVolume);
+                AudioListener.volume = MasterVolume;
+                MusicVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.musicVolume);
+                SfxVolume = Mathf.Clamp01(SaveManager.Instance.CurrentData.sfxVolume);
+                if (bgmSource != null) bgmSource.volume = MusicVolume;
+                if (sfxSource != null) sfxSource.volume = SfxVolume;
             }
             else
             {
+                SetMasterVolume(1.0f);
                 SetMusicVolume(0.8f);
                 SetSfxVolume(0.9f);
+            }
+        }
+
+        public void SetMasterVolume(float volume)
+        {
+            MasterVolume = Mathf.Clamp01(volume);
+            AudioListener.volume = MasterVolume;
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
+            {
+                SaveManager.Instance.CurrentData.masterVolume = MasterVolume;
+                SaveManager.Instance.Save();
             }
         }
 
@@ -194,6 +220,15 @@ namespace UltimatePenaltyCup.Audio
                     clip = sfxPostHit != null ? sfxPostHit : procPostHit;
                     pitch = UnityEngine.Random.Range(0.9f, 1.1f);
                     break;
+                case SfxType.Whistle:
+                    clip = sfxWhistle != null ? sfxWhistle : procWhistle;
+                    break;
+                case SfxType.Miss:
+                    clip = sfxMiss != null ? sfxMiss : procMiss;
+                    break;
+                case SfxType.CrowdAmbient:
+                    clip = sfxCrowd != null ? sfxCrowd : procCrowd;
+                    break;
             }
 
             if (clip != null && sfxSource != null)
@@ -271,6 +306,33 @@ namespace UltimatePenaltyCup.Audio
                 float env = Mathf.Pow(1f - (t / dur), 4f);
                 float ping = Mathf.Sin(2f * Mathf.PI * 880f * t) + Mathf.Sin(2f * Mathf.PI * 1320f * t) * 0.6f;
                 return ping * env;
+            });
+
+            // 7b. Referee Whistle: Dual-tone pea trill
+            procWhistle = CreateSyntheticClip("Proc_Whistle", 0.42f, sampleRate, (t, dur) =>
+            {
+                float env = Mathf.Clamp01(t / 0.03f) * Mathf.Clamp01((dur - t) / 0.05f);
+                float trill = Mathf.Sin(2f * Mathf.PI * 38f * t) * 110f;
+                float s1 = Mathf.Sin(2f * Mathf.PI * (2750f + trill) * t);
+                float s2 = Mathf.Sin(2f * Mathf.PI * (2950f + trill) * t);
+                return (s1 + s2) * 0.42f * env;
+            });
+
+            // 7c. Miss: Soft whoosh + disappointed crowd sigh
+            procMiss = CreateSyntheticClip("Proc_Miss", 0.5f, sampleRate, (t, dur) =>
+            {
+                float env = Mathf.Pow(1f - (t / dur), 1.8f);
+                float low = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(210f, 110f, t / dur) * t) * 0.45f;
+                float air = (UnityEngine.Random.value * 2f - 1f) * 0.25f;
+                return (low + air) * env;
+            });
+
+            // 7d. Crowd Ambient Burst
+            procCrowd = CreateSyntheticClip("Proc_Crowd", 1.1f, sampleRate, (t, dur) =>
+            {
+                float env = Mathf.Sin(Mathf.Clamp01(t / dur) * Mathf.PI);
+                float roar = (UnityEngine.Random.value * 2f - 1f) * 0.22f;
+                return roar * env;
             });
 
             // 8. BGM Menu: Uplifting sports loop

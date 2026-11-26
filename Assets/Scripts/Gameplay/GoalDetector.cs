@@ -26,17 +26,31 @@ namespace UltimatePenaltyCup.Gameplay
 
         private void OnTriggerEnter(Collider other)
         {
+            CheckGoalCross(other);
+        }
+
+        private void OnTriggerStay(Collider other)
+        {
+            CheckGoalCross(other);
+        }
+
+        private void CheckGoalCross(Collider other)
+        {
             BallController ball = other.GetComponent<BallController>();
-            if (ball != null && ball.HasBeenShot)
-            {
-                Vector3 entryPoint = ball.transform.position;
-                Vector3 localPoint = transform.InverseTransformPoint(entryPoint);
+            if (ball == null || !ball.HasBeenShot || ball.WasSavedByGoalkeeper) return;
 
-                bool isCorner = CheckIfCornerOrPrecision(localPoint);
+            Vector3 entryPoint = ball.transform.position;
+            // Ball must have crossed the goal line cleanly inside the frame
+            if (entryPoint.z < 0.08f) return;
+            if (Mathf.Abs(entryPoint.x) > goalHalfWidth - 0.06f) return;
+            if (entryPoint.y > goalHeight - 0.06f || entryPoint.y < -0.1f) return;
 
-                AudioManager.Instance?.PlaySfx(SfxType.S02_Goal);
-                OnGoalScored?.Invoke(isCorner, entryPoint);
-            }
+            Vector3 localPoint = transform.InverseTransformPoint(entryPoint);
+            bool isCorner = CheckIfCornerOrPrecision(localPoint);
+
+            GoalNetRipple.Instance?.TriggerImpact(entryPoint, ball.Velocity);
+            AudioManager.Instance?.PlaySfx(SfxType.S02_Goal);
+            OnGoalScored?.Invoke(isCorner, entryPoint);
         }
 
         private bool CheckIfCornerOrPrecision(Vector3 localPoint)

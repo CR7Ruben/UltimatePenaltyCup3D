@@ -18,6 +18,7 @@ namespace UltimatePenaltyCup.Core
 
         public int CurrentSelectedRoundNumber { get; private set; } = 1;
         public RoundDataSO CurrentRoundData => GetRoundData(CurrentSelectedRoundNumber);
+        public bool RequestOpenAchievementsOnMenu { get; set; } = false;
 
         public event Action<int> OnRoundSelected;
 
@@ -32,12 +33,31 @@ namespace UltimatePenaltyCup.Core
             Instance = this;
             DontDestroyOnLoad(gameObject);
             EnsureCoreManagers();
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                SceneManager.sceneLoaded -= OnSceneLoaded;
+            }
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name == SCENE_MAIN_MENU)
+            {
+                Time.timeScale = 1f;
+                GameStateManager.Instance?.ChangeState(GameState.MainMenu);
+            }
         }
 
         private void EnsureCoreManagers()
         {
             if (GetComponent<SaveManager>() == null) gameObject.AddComponent<SaveManager>();
             if (GetComponent<GameStateManager>() == null) gameObject.AddComponent<GameStateManager>();
+            if (GetComponent<RoundManager>() == null) gameObject.AddComponent<RoundManager>();
             if (GetComponent<Economy.CurrencyManager>() == null) gameObject.AddComponent<Economy.CurrencyManager>();
             if (GetComponent<Economy.ScoreManager>() == null) gameObject.AddComponent<Economy.ScoreManager>();
             if (GetComponent<Audio.AudioManager>() == null) gameObject.AddComponent<Audio.AudioManager>();
@@ -63,13 +83,21 @@ namespace UltimatePenaltyCup.Core
                     }
                 }
             }
+
+            if (RoundManager.Instance != null)
+            {
+                RoundDataSO fallback = RoundManager.Instance.GetRound(roundNumber);
+                if (fallback != null) return fallback;
+            }
+
             return null;
         }
 
         public void SelectRoundAndStartMatch(int roundNumber)
         {
-            CurrentSelectedRoundNumber = roundNumber;
-            OnRoundSelected?.Invoke(roundNumber);
+            CurrentSelectedRoundNumber = Mathf.Clamp(roundNumber, 1, 5);
+            Time.timeScale = 1f;
+            OnRoundSelected?.Invoke(CurrentSelectedRoundNumber);
             LoadMatchScene();
         }
 

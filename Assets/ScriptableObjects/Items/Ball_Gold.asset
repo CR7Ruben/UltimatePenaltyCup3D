@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ballType: 4
   displayName: "Bal\xF3n Dorado"
-  description: "Edici\xF3n de oro puro para campeones legendarios."
+  description: "Edici\xF3n oro campe\xF3n 24K con brillo legendario."
   price: 5000
   primaryColor: {r: 1, g: 0.85, b: 0.2, a: 1}
   secondaryColor: {r: 0, g: 0, b: 0, a: 1}
   trailColor: {r: 1, g: 0.9, b: 0.3, a: 1}
   material: {fileID: 2100000, guid: ad7c6c60d18762a4da637ee8a093b027, type: 2}
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 1d4d04a1fd750064f9deae2d924d6409, type: 3}

@@ -35,13 +35,19 @@ namespace UltimatePenaltyCup.Economy
             DontDestroyOnLoad(gameObject);
         }
 
+        public void BindForTest()
+        {
+            Instance = this;
+        }
+
         public void AddCoins(int amount)
         {
-            if (amount <= 0 || SaveManager.Instance == null) return;
+            if (amount <= 0 || SaveManager.Instance == null || SaveManager.Instance.CurrentData == null) return;
 
             SaveManager.Instance.CurrentData.coins += amount;
             SaveManager.Instance.Save();
             OnCoinsChanged?.Invoke(SaveManager.Instance.CurrentData.coins, amount);
+            Achievements.AchievementManager.Instance?.CheckCoins(SaveManager.Instance.CurrentData.coins);
         }
 
         public bool SpendCoins(int amount)

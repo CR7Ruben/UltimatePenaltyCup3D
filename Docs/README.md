@@ -1,66 +1,43 @@
-# Ultimate Penalty Cup 3D — README
+# UltimatePenaltyCup3D
 
-**A&R Game Labs** | Developers: **Rubén González** & **Xitzia Aimara Fierro Rivera**
-
----
-
-## Overview
-
-**Ultimate Penalty Cup 3D** is a single-player, third-person arcade penalty-shootout game built with Unity 6 (URP) for Windows PC. The player takes on the role of footballer **Rubén González (#10)** and must beat AI goalkeeper **Malágon** across 5 progressively harder rounds to become champion.
+**Estudio:** A&R Game Labs  
+**Desarrolladores:** Rubén Alberto González Camargo & Xitzia Aimara Fierro Rivera  
+**Motor:** Unity 6 (`6000.6.4f1`) · URP · C#  
+**Plataforma:** Windows x64
 
 ---
 
-## Quick Start
+## Descripción
 
-1. Download and extract `Builds/Windows/UltimatePenaltyCup3D.exe`
-2. Run `UltimatePenaltyCup3D.exe`
-3. Click **JUGAR** → Select a **Round** → Play!
+**UltimatePenaltyCup3D** es un videojuego deportivo arcade 3D en tercera persona donde encarnas a **Rubén González (#10)** en una serie de cinco rondas de tiros penales contra el portero controlado por inteligencia artificial **Malágon**.
 
----
-
-## Controls
-
-| Action | Input |
-|---|---|
-| Move player | WASD / Arrow Keys |
-| Aim at goal | Mouse movement |
-| Charge shot | Hold Left Mouse Button |
-| Release shot | Release Left Mouse Button |
-| Pause | P or Pause Button (HUD) |
+Cada ronda aumenta la dificultad de la IA, exige una meta de goles en un máximo de cinco intentos y traslada la acción por cuatro estadios diferenciados (**Cantera**, **Nocturno**, **Profesional** y **Mundial**).
 
 ---
 
-## Game Modes
+## Características principales
 
-- **5 Rounds** of penalty shootouts (5 attempts each)
-- Earn **coins** and **points** for goals, corner shots, and power shots
-- **Streak bonuses** for consecutive goals
-- Unlock stadiums and balls in the **Store**
-
----
-
-## Build & Development
-
-See `BUILD_INSTRUCTIONS.md` for how to compile from source.
-
-**Requirements:**
-- Unity 6 (6000.6.4f1)
-- Universal Render Pipeline (URP)
-- TextMeshPro
-- Input System package
+- **Inicio limpio:** El juego inicia siempre en `MainMenu` (índice `0` en Build Settings) con el estadio en 3D en vivo y cámara orbital.
+- **5 rondas progresivas:**
+  - Ronda 1 (*Cantera*): 3 goles en máximo 5 intentos.
+  - Ronda 2 (*Liga Local*): 3 goles en máximo 5 intentos.
+  - Ronda 3 (*Liga Profesional*): 4 goles en máximo 5 intentos.
+  - Ronda 4 (*Semifinal*): 4 goles en máximo 5 intentos.
+  - Ronda 5 (*Gran Final*): 4 goles en máximo 5 intentos + celebración de campeonato.
+- **Finalización anticipada de ronda:** Al alcanzar la meta de goles o cuando es matemáticamente imposible lograrla, la ronda concluye automáticamente mostrando la pantalla de Victoria, Derrota o Gran Final.
+- **Portero Malágon con IA y física real:** Máquina de 8 estados (`Idle`, `Ready`, `Reacting`, `DivingLeft`, `DivingRight`, `Saving`, `Recovering`, `Resetting`), detección predictiva de trayectoria, `Rigidbody` cinemático, colliders en cuerpo y guantes, verificación continua en `FixedUpdate` y desvíos hacia adelante.
+- **Personajes 3D unificados con rigging:** Mallas anatómicas de 17 huesos con `SkinnedMeshRenderer`, pesos suavizados en articulaciones y materiales separados para piel corporal, rostro frontal, cabello, camiseta, short, medias, botines y guantes.
+- **Tienda y Personalización con vistas previas reales:** 5 balones y 4 estadios renderizados en 3D con cámaras de estudio, sin cuadrados planos de color.
+- **Audio, logros y persistencia:** 7 logros con barra de progreso, audio procedimental de respaldo (silbato, golpeo, poste, atajada, gol, música) y guardado automático JSON en `PlayerPrefs`.
 
 ---
 
-## Credits
+## Ejecución y compilación
 
-| Role | Person |
-|---|---|
-| Developer / Gameplay Programmer | Rubén Alberto González Camargo |
-| Developer / Game Designer | Xitzia Aimara Fierro Rivera |
-| Studio | A&R Game Labs |
-| Engine | Unity 6 (URP) |
-| Language | C# |
+- Ejecutable Windows x64: `Builds/Windows/UltimatePenaltyCup3D.exe`
+- Guía completa de compilación: ver [`BUILD_INSTRUCTIONS.md`](BUILD_INSTRUCTIONS.md)
+- Controles detallados: ver [`CONTROLS.md`](CONTROLS.md)
 
 ---
 
-*© 2026 A&R Game Labs. All rights reserved.*
+*© 2026 A&R Game Labs. Todos los derechos reservados.*

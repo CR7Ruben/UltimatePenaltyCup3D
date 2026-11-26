@@ -1,41 +1,31 @@
-# Ultimate Penalty Cup 3D — Controls Reference
+# UltimatePenaltyCup3D — Controles y Mecánicas
 
-## In-Match Controls
+## Controles en partido (`MatchScene`)
 
-| Action | Input |
+| Acción | Entrada |
 |---|---|
-| Move player left | A / ← Arrow |
-| Move player right | D / → Arrow |
-| Move player forward | W / ↑ Arrow |
-| Move player back | S / ↓ Arrow |
-| Aim at goal | Move Mouse |
-| Charge shot power | Hold Left Mouse Button |
-| Release / Kick | Release Left Mouse Button |
-| Pause game | Click Pause (II) button on HUD |
+| Mover al futbolista en la zona de carrera | `W` `A` `S` `D` o Flechas de dirección |
+| Apuntar hacia la portería | Movimiento del Mouse |
+| Cargar potencia de disparo | Mantener clic izquierdo del Mouse |
+| Ejecutar disparo | Soltar clic izquierdo del Mouse |
+| Pausar / Reanudar partida | Tecla `ESC` o botón de pausa (`II`) en esquina superior derecha |
 
-## Shooting Tips
+---
 
-- **Normal Goal**: Aim and release for a standard kick (100 pts)
-- **Corner/Precision Goal**: Aim at the far edges of the goal — Malágon has less reach there (200 pts)
-- **High Power Goal**: Charge the power bar to 90%+ for a powerful blast (150 pts)
-- **Streak Bonus**: Score consecutive goals for escalating bonus coins and points
-- The **power bar** at the bottom shows your current charge level (green → yellow → red)
-- The **5 shot indicator circles** (top bar) track your attempt history for the round
+## Sistema de apuntado y potencia
 
-## Movement Zone
+- **Retícula circular:** Muestra el punto exacto de impacto proyectado sobre el plano de la portería.
+- **Trayectoria parabólica:** Arco punteado discreto desde el balón hacia la portería.
+- **Zona Perfecta (68% – 88%):** La barra de potencia y la retícula se iluminan en dorado indicando **¡ZONA PERFECTA!** para máxima precisión sin dispersión aleatoria.
+- **Exceso de potencia (> 92%):** Se ilumina en rojo advirtiendo riesgo de desviación alta o travesaño.
+- **Bloqueo automático:** Al disparar, pausar o finalizar una ronda, los controles de movimiento y disparo quedan bloqueados para evitar doble ejecución.
 
-The player can move within the **penalty approach zone** (roughly within 2.5m left/right of the spot, and a small range forward/back). This lets you adjust your angle before shooting.
+---
 
-## UI Navigation
+## Navegación en menús
 
-- Main Menu buttons are self-explanatory
-- **JUGAR** → Round Select
-- **TIENDA** → Buy balls and stadiums
-- **PERSONALIZACIÓN** → Equip purchased items
-- **LOGROS** → View achievement progress
-- **OPCIONES** → Adjust music and SFX volume
-- **SALIR** → Exit the game
-
-## Secret Development Code
-
-In the main menu, type `PENALTY2026` in the secret code box and press **CANJEAR** to receive 5,000 coins (available in Debug/Development builds only).
+- **JUGAR:** Abre la selección de las 5 rondas con vista del estadio y dificultad de IA.
+- **TIENDA:** Pestañas separadas para **Balones** y **Estadios** con previsualizaciones reales.
+- **PERSONALIZACIÓN:** Pestañas separadas con inspector de vista previa y botón **Usar estadio de cada ronda** / selección fija.
+- **LOGROS:** Medallas y barras de progreso en tiempo real de los 7 objetivos.
+- **OPCIONES:** Volumen General, Música, Efectos, Sensibilidad de apuntado, Resolución, Pantalla completa/ventana, Calidad gráfica, Restaurar predeterminados y canje de códigos promocionales.

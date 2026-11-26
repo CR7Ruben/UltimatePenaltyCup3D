@@ -74,6 +74,7 @@ namespace UltimatePenaltyCup.Shop
 
             SaveManager.Instance.UnlockBall(type);
             AudioManager.Instance?.PlaySfx(SfxType.S04_Purchase);
+            Achievements.AchievementManager.Instance?.CheckBallsCollector();
             OnBallPurchased?.Invoke(item);
             Debug.Log($"[ShopManager] Balón comprado con éxito: {item.displayName}");
             return true;

@@ -1,76 +1,51 @@
-# Ultimate Penalty Cup 3D — Architecture
+# UltimatePenaltyCup3D — Arquitectura del Software
 
-## High-Level Architecture
+## Visión general
+
+**UltimatePenaltyCup3D** sigue una arquitectura modular orientada a objetos y dirigida por eventos en C# sobre Unity 6 (URP).
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        GAME MANAGER                          │
-│        (DontDestroyOnLoad singleton coordinator)             │
-│  GameManager · SaveManager · CurrencyManager · ScoreManager  │
-│  AudioManager · ShopManager · CustomizationManager          │
-│  AchievementManager · RoundManager                           │
-└────────────────────────┬────────────────────────────────────┘
-                         │ Events / Singletons
-         ┌───────────────┼──────────────────┐
-         ▼               ▼                  ▼
-  ┌────────────┐  ┌──────────────┐  ┌──────────────┐
-  │  MainMenu  │  │  MatchScene  │  │   SaveSystem  │
-  │  (Scene 0) │  │  (Scene 1)   │  │  (JSON/Prefs) │
-  └────────────┘  └──────┬───────┘  └──────────────┘
-                         │
-        ┌────────────────┼──────────────────────┐
-        ▼                ▼                       ▼
- ┌────────────┐  ┌───────────────┐   ┌───────────────────┐
- │  Player    │  │  Goalkeeper   │   │   PenaltyManager  │
- │  Ruben #10 │  │  Malagon AI   │   │  (Match State     │
- │            │  │  (5 diff lvl) │   │   Machine)        │
- └─────┬──────┘  └───────┬───────┘   └────────┬──────────┘
-       │                 │                     │
-       ▼                 ▼                     ▼
- PlayerController   GoalkeeperAI        BallController
- PlayerShooter      (reaction delay,    GoalDetector
- (Aim, charge,       dive, shuffle)     (corner/power
-  launch physics)                        detection)
+MainMenu (Índice 0, Persistent Managers via DontDestroyOnLoad)
+ ├── GameManager            (Coordinador de escenas, RoundConfigs, estado global)
+ ├── GameStateManager       (Máquina de estados UI/Partida)
+ ├── RoundManager           (Catálogo de 5 RoundDataSO + sincronización)
+ ├── SaveManager            (Persistencia JSON en PlayerPrefs)
+ ├── CurrencyManager        (Monedas, puntos y código PENALTY2026 en Dev/Editor)
+ ├── ScoreManager           (Puntuación escalonada y rachas)
+ ├── ShopManager            (Compras de BallItemSO / StadiumItemSO)
+ ├── CustomizationManager   (Equipar balón, estadio fijo o automático por ronda)
+ ├── AchievementManager     (7 logros, progreso en vivo, sin duplicación)
+ └── AudioManager           (Música, SFX y síntesis procedimental de respaldo)
+
+MatchScene (Índice 1)
+ ├── PenaltyManager         (Máquina de estados del penal y fin anticipado)
+ ├── GoalkeeperAI           (IA de 8 estados, predicción balística y atajadas)
+ ├── PlayerController       (Locomoción procedimental sobre esqueleto de 17 huesos)
+ ├── PlayerShooter          (Apuntado en plano de gol, curva, sweet spot y potencia)
+ ├── BallController         (Física FIFA 0.43kg, 0.22m, estelas y partículas VFX)
+ ├── GoalDetector           (Cruce real de línea de gol + detección de ángulo)
+ ├── GoalNetRipple          (Deformación dinámica de mallas subdivididas de la red)
+ ├── MatchCameraController  (Cámara de penal deportiva con seguimiento suavizado)
+ ├── StadiumController      (4 estadios diferenciados + iluminación + confeti)
+ └── Canvas_MatchHUD        (MatchHUD, PauseManager/PauseUI, RoundEndManager/RoundEndUI)
 ```
 
-## Namespace Map
+---
 
-| Namespace | Location | Responsibility |
+## Inventario de namespaces (`Assets/Scripts/`)
+
+| Namespace | Scripts | Responsabilidad |
 |---|---|---|
-| `UltimatePenaltyCup.Core` | Scripts/Core/ | Enums, GameManager, GameStateManager |
-| `UltimatePenaltyCup.Player` | Scripts/Player/ | PlayerController, PlayerShooter |
-| `UltimatePenaltyCup.Goalkeeper` | Scripts/Goalkeeper/ | GoalkeeperAI |
-| `UltimatePenaltyCup.Gameplay` | Scripts/Gameplay/ | Ball, Goal, Penalty, Camera, Stadium |
-| `UltimatePenaltyCup.Economy` | Scripts/Economy/ | CurrencyManager, ScoreManager |
-| `UltimatePenaltyCup.SaveSystem` | Scripts/SaveSystem/ | SaveManager, SaveData |
-| `UltimatePenaltyCup.Shop` | Scripts/Shop/ | ShopManager, BallItemSO, StadiumItemSO |
-| `UltimatePenaltyCup.Customization` | Scripts/Customization/ | CustomizationManager |
-| `UltimatePenaltyCup.Achievements` | Scripts/Achievements/ | AchievementManager, AchievementSO |
-| `UltimatePenaltyCup.Audio` | Scripts/Audio/ | AudioManager (procedural fallback) |
-| `UltimatePenaltyCup.Levels` | Scripts/Levels/ | RoundManager, RoundDataSO |
-| `UltimatePenaltyCup.UI` | Scripts/UI/ | All UI MonoBehaviours |
-| `UltimatePenaltyCup.Editor` | Scripts/Editor/ | Editor-only tools |
-
-## Key Design Patterns
-
-- **Singleton MonoBehaviour** — All managers use `Instance` with `DontDestroyOnLoad`
-- **ScriptableObject Data** — `RoundDataSO`, `BallItemSO`, `StadiumItemSO`, `AchievementSO`
-- **Event-Driven UI** — Managers expose `C# events`; UI subscribes in `Start()`, unsubscribes in `OnDestroy()`
-- **State Machine** — `PenaltyManager` controls the shot lifecycle: Aiming → Charging → Kicking → InFlight → Evaluated → Resetting
-- **Procedural Audio** — `AudioManager` synthesises fallback audio via `Math.Sin` waveforms if no clips are assigned
-
-## Save System
-
-- **Serialization**: `JsonUtility.ToJson(SaveData)` → `PlayerPrefs`
-- **Key**: `UPC3D_SaveData_v1`
-- **Data**: Coins, totalPoints, highScore, unlockedRounds/Balls/Stadiums, equippedBall, selectedStadium, achievements, statistics, audio volumes
-
-## Goalkeeper AI — Difficulty Levels
-
-| Round | Reaction Delay | Move Speed | Dive Speed | Error Prob |
-|---|---|---|---|---|
-| 1 — Cantera | 0.55s | 3.5 | 4.0 | 50% |
-| 2 — Liga Local | 0.45s | 4.0 | 5.0 | 38% |
-| 3 — Liga Pro | 0.35s | 5.0 | 6.5 | 25% |
-| 4 — Semifinal | 0.22s | 6.5 | 8.5 | 14% |
-| 5 — Gran Final | 0.12s | 8.5 | 11.0 | 5% |
+| `UltimatePenaltyCup.Core` | `GameEnums`, `GameManager`, `GameStateManager` | Estados globales, enums y transición de escenas |
+| `UltimatePenaltyCup.Levels` | `RoundDataSO`, `RoundManager` | Datos de rondas 1–5 y progresión |
+| `UltimatePenaltyCup.Gameplay` | `PenaltyManager`, `BallController`, `GoalDetector`, `GoalNetRipple`, `MatchCameraController`, `StadiumController`, `MenuCameraOrbit` | Ciclo completo del penal, física, cámara y estadios |
+| `UltimatePenaltyCup.Player` | `PlayerController`, `PlayerShooter` | Animación esquelética y mecánicas de disparo |
+| `UltimatePenaltyCup.Goalkeeper` | `GoalkeeperAI` | IA de 8 estados con atajada física y verificación continua |
+| `UltimatePenaltyCup.Economy` | `CurrencyManager`, `ScoreManager` | Economía, balance no negativo y bonos |
+| `UltimatePenaltyCup.SaveSystem` | `SaveData`, `SaveManager` | Serialización JSON retrocompatible |
+| `UltimatePenaltyCup.Shop` | `ShopManager`, `BallItemSO`, `StadiumItemSO` | Catálogo y validación de compras |
+| `UltimatePenaltyCup.Customization` | `CustomizationManager` | Equipamiento de balones y estadios |
+| `UltimatePenaltyCup.Achievements` | `AchievementManager`, `AchievementSO` | Evaluación y progreso de logros |
+| `UltimatePenaltyCup.Audio` | `AudioManager` | BGM/SFX con síntesis matemática procedimental |
+| `UltimatePenaltyCup.UI` | `MainMenuUI`, `RoundSelectUI`, `ShopUI`, `ShopItemCardUI`, `CustomizationUI`, `AchievementsUI`, `SettingsUI`, `MatchHUD`, `PauseUI`, `RoundEndUI`, `UIButtonAnimator` | Interfaz deportiva responsiva 1920×1080 |
+| `UltimatePenaltyCup.Editor` | `ProjectSetupBuilder`, `HumanoidMeshBuilder`, `CharacterAndStadiumUpgrader`, `GameTextureGenerator`, `UIStyleGenerator`, `AssetPreviewRenderer`, `GameSystemsTestRunner`, `VisualValidationCapture`, `GameBuildPipeline` | Generación integral de arte, rig, UI, tests, capturas y build |

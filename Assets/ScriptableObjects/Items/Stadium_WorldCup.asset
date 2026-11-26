@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stadiumType: 3
   displayName: Estadio Mundial
-  description: El majestuoso estadio de la Gran Final de Ultimate Penalty Cup.
+  description: Sede de la Gran Final con pantallas gigantes, confeti y trofeo.
   price: 7500
   skyColor: {r: 0.12, g: 0.22, b: 0.48, a: 1}
   equatorColor: {r: 0.3, g: 0.4, b: 0.5, a: 1}
@@ -24,4 +24,4 @@ MonoBehaviour:
   lightRotation: {x: 50, y: -30, z: 0}
   grassMaterial: {fileID: 2100000, guid: ac47516cda7f1f04d8fd9984b4593ce0, type: 2}
   bannerMaterial: {fileID: 0}
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 03a25e701e6639d46a68f1cd0da942ce, type: 3}

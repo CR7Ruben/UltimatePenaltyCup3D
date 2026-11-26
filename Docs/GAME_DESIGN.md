@@ -1,101 +1,40 @@
-# Ultimate Penalty Cup 3D — Game Design Reference
+# UltimatePenaltyCup3D — Documento de Diseño (GDD)
 
-## Overview
+## Identidad del proyecto
 
-| Field | Value |
-|---|---|
-| Genre | Sports Arcade / Casual |
-| Perspective | Third-person (behind shooter) |
-| Core Loop | Aim → Charge → Shoot → Result → Repeat |
-| Session Length | ~5–10 minutes per round |
-| Target Platform | Windows PC (future: Android) |
+- **Nombre definitivo:** `UltimatePenaltyCup3D`
+- **Estudio:** A&R Game Labs
+- **Género:** Deportivo / Arcade / Casual
+- **Perspectiva:** Tercera persona detrás del lanzador (vista lateral deportiva)
 
 ---
 
-## Round Progression
+## Progresión de rondas
 
-| Round | Name | Required Goals | Reward Coins | Goalkeeper Level |
-|---|---|---|---|---|
-| 1 | Cantera | 2/5 | 300 | Principiante |
-| 2 | Liga Local | 3/5 | 500 | Semiprofesional |
-| 3 | Liga Profesional | 3/5 | 800 | Profesional |
-| 4 | Semifinal | 4/5 | 1,200 | Avanzado |
-| 5 | Gran Final | 4/5 | 2,000 | Campeón |
+| Ronda | Nombre | Meta / Intentos | Estadio temático | Nivel de Malágon | Delay | DiveSpeed | Error | Bono |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Cantera | 3 / 5 | Cantera (Día) | Principiante | 0.24 s | 5.2 | 42 % | +500 pts / +300 monedas |
+| 2 | Liga Local | 3 / 5 | Nocturno | Intermedio | 0.19 s | 6.8 | 30 % | +500 pts / +450 monedas |
+| 3 | Liga Profesional | 4 / 5 | Profesional | Profesional | 0.15 s | 8.4 | 20 % | +650 pts / +650 monedas |
+| 4 | Semifinal | 4 / 5 | Nocturno | Avanzado | 0.11 s | 10.0 | 12 % | +800 pts / +900 monedas |
+| 5 | Gran Final | 4 / 5 | Mundial | Élite | 0.08 s | 11.6 | 6 % | +1,200 pts / +1,500 monedas |
 
 ---
 
-## Scoring System
+## Puntuación y economía
 
-| Shot Type | Points | Coins |
+| Resultado | Puntos base | Monedas base |
 |---|---|---|
-| Normal Goal | 100 | 100 |
-| High Power Goal (≥90% charge) | 150 | 125 |
-| Corner/Precision Goal | 200 | 150 |
-| Miss | 0 | 0 |
-| Saved | 0 | 0 |
-| Streak Bonus (per extra consecutive goal) | +50 per streak | +25 per streak |
+| Gol normal | 100 | 100 |
+| Gol de alta potencia (`>= 82%`) | 150 | 125 |
+| Gol al ángulo / precisión | 200 | 150 |
+| Atajada / Al poste / Fuera | 0 | 0 |
+| Bono por racha (`streak >= 2`) | +50 × `(streak - 1)` | +25 × `(streak - 1)` |
 
 ---
 
-## Ball Catalog
+## Catálogo de Tienda y Personalización
 
-| Ball | Price | Description |
-|---|---|---|
-| Clásico | FREE | Official match ball |
-| Azul | 500 | Electric blue power ball |
-| Fuego | 1,200 | Flaming trail ball |
-| Arcoíris | 2,000 | Rainbow multicolor special |
-| Dorado | 3,500 | 24K champion edition |
-
----
-
-## Stadium Catalog
-
-| Stadium | Price | Atmosphere |
-|---|---|---|
-| Cantera | FREE | Bright daylight training ground |
-| Nocturno | 1,500 | Dramatic 4-tower night match |
-| Profesional | 3,000 | Twilight full-capacity stadium |
-| Mundial | 6,000 | Championship golden arena with confetti |
-
----
-
-## Achievement System
-
-| ID | Name | Condition | Reward |
-|---|---|---|---|
-| FIRST_GOAL | Primer Gol | Score your first goal | 50 coins |
-| SNIPER_10 | Francotirador | Score 10 corner/precision goals | 300 coins |
-| PERFECT_STREAK | Racha Perfecta | 5 consecutive goals (one round) | 500 coins |
-| CHAMPION | Campeón | Win Round 5 (Gran Final) | 1,000 coins |
-| MILLIONAIRE | Millonario | Accumulate 10,000 coins | 500 coins |
-| COLLECTOR | Coleccionista | Unlock all 5 balls | 400 coins |
-| LEGEND | Leyenda | Unlock all 7 achievements | 2,000 coins |
-
----
-
-## Camera System
-
-- **Idle**: Positioned at `(0, 2.8, -16.8)` looking at the goal
-- **Shot tracking**: Follows ball trajectory with subtle FOV zoom during flight
-- **Reset**: Smooth lerp back to home position after each attempt
-- FOV transitions: 60° (idle) → 72° (ball in flight) → 60° (reset)
-
----
-
-## Audio Design
-
-| Enum | Type | Description |
-|---|---|---|
-| M01_Menu | BGM | Main menu ambient sports theme |
-| M02_Match | BGM | Tension-building in-match loop |
-| M03_Victory | BGM | Upbeat victory fanfare |
-| M04_Defeat | BGM | Subdued defeat theme |
-| S01_Kick | SFX | Ball kick impact |
-| S02_Goal | SFX | Crowd roar goal celebration |
-| S03_Save | SFX | Goalkeeper glove save |
-| S04_Miss | SFX | Miss / deflection sound |
-| S05_Crowd | SFX | Ambient crowd chatter |
-| S06_ButtonClick | SFX | UI button press |
-
-All audio falls back to procedural `Math.Sin` synthesis if no AudioClip is assigned.
+- **Balones (5):** Clásico (Gratis), Azul (500), Fuego (1,000), Arcoíris (2,000), Dorado (5,000).
+- **Estadios (4):** Cantera (Gratis), Nocturno (2,000), Profesional (4,000), Mundial (7,500). Incluye modo **Automático por Ronda** o **Estadio Fijo** personalizado.
+- **Logros (7):** Primer Gol (`100`), Francotirador (`300`), Racha Perfecta (`500`), Campeón (`1,500`), Millonario (`2,000`), Coleccionista (`2,500`), Leyenda (`3,000`).

@@ -1,5 +1,4 @@
 #pragma warning disable 0649
-using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,7 +16,7 @@ namespace UltimatePenaltyCup.UI
     {
         public static MatchHUD Instance { get; private set; }
 
-        [Header("Top Info Bar")]
+        [Header("Top Broadcast Scoreboard")]
         [SerializeField] private TMP_Text txtRoundTitle;
         [SerializeField] private TMP_Text txtGoalsTarget;
         [SerializeField] private TMP_Text txtAttemptCounter;
@@ -28,6 +27,7 @@ namespace UltimatePenaltyCup.UI
         [Header("Power Bar")]
         [SerializeField] private GameObject powerBarContainer;
         [SerializeField] private Image imgPowerFill;
+        [SerializeField] private TMP_Text txtPowerHint;
         [SerializeField] private Gradient powerGradient;
 
         [Header("Result Banner")]
@@ -43,10 +43,10 @@ namespace UltimatePenaltyCup.UI
         [Header("Shot Attempt Indicators")]
         [SerializeField] private Image[] imgShotIndicators; // 5 circles
 
-        private static readonly Color ColorEmpty = new Color(0.3f, 0.3f, 0.35f, 0.9f);
-        private static readonly Color ColorGoal  = new Color(0.15f, 0.80f, 0.3f, 1f);
-        private static readonly Color ColorMiss  = new Color(0.85f, 0.2f, 0.2f, 1f);
-        private static readonly Color ColorSaved = new Color(0.9f, 0.5f, 0.1f, 1f);
+        private static readonly Color ColorEmpty = new Color(0.28f, 0.33f, 0.42f, 0.9f);
+        private static readonly Color ColorGoal  = new Color(0.15f, 0.78f, 0.44f, 1f);
+        private static readonly Color ColorMiss  = new Color(0.90f, 0.28f, 0.30f, 1f);
+        private static readonly Color ColorSaved = new Color(0.96f, 0.56f, 0.12f, 1f);
 
         private int currentAttemptIndex = 0;
         private Coroutine bannerCoroutine;
@@ -62,10 +62,11 @@ namespace UltimatePenaltyCup.UI
             if (powerGradient == null || powerGradient.colorKeys.Length == 0)
             {
                 powerGradient = new Gradient();
-                var colorKeys = new GradientColorKey[3];
-                colorKeys[0] = new GradientColorKey(new Color(0.2f, 0.9f, 0.3f), 0.0f); // Green
-                colorKeys[1] = new GradientColorKey(new Color(1.0f, 0.85f, 0.0f), 0.6f); // Yellow
-                colorKeys[2] = new GradientColorKey(new Color(1.0f, 0.2f, 0.2f), 1.0f); // Red
+                var colorKeys = new GradientColorKey[4];
+                colorKeys[0] = new GradientColorKey(new Color(0.15f, 0.78f, 0.44f), 0.0f);  // Green
+                colorKeys[1] = new GradientColorKey(new Color(1.00f, 0.78f, 0.24f), 0.75f); // Gold Sweet Spot
+                colorKeys[2] = new GradientColorKey(new Color(1.00f, 0.55f, 0.10f), 0.90f); // Orange
+                colorKeys[3] = new GradientColorKey(new Color(0.90f, 0.28f, 0.30f), 1.0f);  // Red overpower
 
                 var alphaKeys = new GradientAlphaKey[2];
                 alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
@@ -88,7 +89,7 @@ namespace UltimatePenaltyCup.UI
 
             if (PlayerShooter.Instance != null)
             {
-                PlayerShooter.Instance.OnPowerChanged += UpdatePowerBar;
+                PlayerShooter.Instance.OnPowerUpdated += UpdatePowerBarDetailed;
             }
 
             if (PenaltyManager.Instance != null)
@@ -96,26 +97,29 @@ namespace UltimatePenaltyCup.UI
                 PenaltyManager.Instance.OnAttemptStarted += HandleAttemptStarted;
                 PenaltyManager.Instance.OnAttemptFinished += HandleAttemptFinished;
                 PenaltyManager.Instance.OnStatsUpdated += HandleStatsUpdated;
+                PenaltyManager.Instance.OnRoundEndedDetailed += HandleRoundEnded;
             }
 
             if (powerBarContainer != null) powerBarContainer.SetActive(false);
             if (bannerResult != null) bannerResult.SetActive(false);
             if (txtStreak != null) txtStreak.gameObject.SetActive(false);
 
-            // Reset shot indicator circles to empty
             currentAttemptIndex = 0;
             if (imgShotIndicators != null)
+            {
                 foreach (var img in imgShotIndicators)
                     if (img != null) img.color = ColorEmpty;
+            }
 
-            ShowMessageBanner("¡Prepárate para disparar!", "Apunta con el mouse y mantén clic para cargar potencia", new Color(0.1f, 0.4f, 0.85f, 0.9f), 2.2f);
+            RefreshHeaderFromRoundData();
+            ShowMessageBanner("¡TU TURNO!", "WASD: Mover  |  Mouse: Apuntar  |  Clic: Cargar potencia", new Color(0.06f, 0.22f, 0.46f, 0.94f), 2.2f);
         }
 
         private void OnDestroy()
         {
             if (PlayerShooter.Instance != null)
             {
-                PlayerShooter.Instance.OnPowerChanged -= UpdatePowerBar;
+                PlayerShooter.Instance.OnPowerUpdated -= UpdatePowerBarDetailed;
             }
 
             if (PenaltyManager.Instance != null)
@@ -123,52 +127,65 @@ namespace UltimatePenaltyCup.UI
                 PenaltyManager.Instance.OnAttemptStarted -= HandleAttemptStarted;
                 PenaltyManager.Instance.OnAttemptFinished -= HandleAttemptFinished;
                 PenaltyManager.Instance.OnStatsUpdated -= HandleStatsUpdated;
+                PenaltyManager.Instance.OnRoundEndedDetailed -= HandleRoundEnded;
+            }
+        }
+
+        private RoundDataSO GetActiveRoundData()
+        {
+            if (GameManager.Instance != null && GameManager.Instance.CurrentRoundData != null)
+                return GameManager.Instance.CurrentRoundData;
+            int rNum = GameManager.Instance != null ? GameManager.Instance.CurrentSelectedRoundNumber : 1;
+            return RoundManager.Instance != null ? RoundManager.Instance.GetRound(rNum) : null;
+        }
+
+        private void RefreshHeaderFromRoundData()
+        {
+            RoundDataSO data = GetActiveRoundData();
+            if (txtRoundTitle != null)
+            {
+                txtRoundTitle.text = data != null ? $"RONDA {data.roundNumber}: {data.roundName.ToUpper()}" : "RONDA 1";
             }
         }
 
         private void HandleAttemptStarted(int attempt, int max)
         {
+            RefreshHeaderFromRoundData();
             if (txtAttemptCounter != null)
             {
-                txtAttemptCounter.text = $"Intento {attempt} / {max}";
-            }
-
-            RoundDataSO data = GameManager.Instance != null ? GameManager.Instance.CurrentRoundData : null;
-            if (txtRoundTitle != null)
-            {
-                txtRoundTitle.text = data != null ? $"Ronda {data.roundNumber}: {data.roundName.ToUpper()}" : "TIROS PENALES";
+                txtAttemptCounter.text = $"Penal {attempt} / {max}";
             }
         }
 
         private void HandleStatsUpdated(int goals, int attemptsUsed, int matchScore)
         {
-            RoundDataSO data = GameManager.Instance != null ? GameManager.Instance.CurrentRoundData : null;
-            int req = data != null ? data.requiredGoals : 3;
+            RoundDataSO data = GetActiveRoundData();
+            int req = data != null ? data.requiredGoals : (PenaltyManager.Instance != null ? PenaltyManager.Instance.RequiredGoals : 3);
 
             if (txtGoalsTarget != null)
             {
                 txtGoalsTarget.text = $"Goles: {goals} / {req}";
-                txtGoalsTarget.color = goals >= req ? Color.green : Color.white;
+                txtGoalsTarget.color = goals >= req ? ColorGoal : Color.white;
             }
 
             if (txtScore != null)
             {
-                txtScore.text = $"Puntos: {matchScore:N0}";
+                txtScore.text = $"{matchScore:N0} pts";
             }
 
             if (txtCoins != null)
             {
                 int coins = CurrencyManager.Instance != null ? CurrencyManager.Instance.Coins : 0;
-                txtCoins.text = $"Monedas: {coins:N0}";
+                txtCoins.text = $"{coins:N0}";
             }
 
             int streak = ScoreManager.Instance != null ? ScoreManager.Instance.CurrentStreak : 0;
             if (txtStreak != null)
             {
-                if (streak > 1)
+                if (streak >= 2)
                 {
                     txtStreak.gameObject.SetActive(true);
-                    txtStreak.text = $"¡Racha x{streak}!";
+                    txtStreak.text = $"RACHA x{streak}!";
                 }
                 else
                 {
@@ -179,7 +196,6 @@ namespace UltimatePenaltyCup.UI
 
         private void HandleAttemptFinished(ShotResult result, ShotScoreResult scoreResult, string msg)
         {
-            // Update shot indicator circle
             if (imgShotIndicators != null && currentAttemptIndex < imgShotIndicators.Length)
             {
                 Color indicatorColor = result switch
@@ -194,7 +210,8 @@ namespace UltimatePenaltyCup.UI
                     imgShotIndicators[currentAttemptIndex].color = indicatorColor;
                 currentAttemptIndex++;
             }
-            Color bannerColor = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+
+            Color bannerColor = new Color(0.10f, 0.16f, 0.28f, 0.95f);
             string subText = "";
 
             switch (result)
@@ -202,23 +219,38 @@ namespace UltimatePenaltyCup.UI
                 case ShotResult.GoalNormal:
                 case ShotResult.GoalCorner:
                 case ShotResult.GoalHighPower:
-                    bannerColor = new Color(0.1f, 0.65f, 0.25f, 0.95f);
+                    bannerColor = new Color(0.10f, 0.62f, 0.34f, 0.96f);
                     subText = $"+{scoreResult.pointsEarned} Pts  |  +{scoreResult.coinsEarned} Monedas";
                     break;
                 case ShotResult.Saved:
-                    bannerColor = new Color(0.85f, 0.4f, 0.1f, 0.95f);
-                    subText = "¡Gran estirada del arquero!";
+                    bannerColor = new Color(0.84f, 0.44f, 0.08f, 0.96f);
+                    subText = "Malágon desvió el disparo";
+                    break;
+                case ShotResult.PostHit:
+                    bannerColor = new Color(0.88f, 0.56f, 0.12f, 0.96f);
+                    subText = "¡El balón se estrelló en el metal!";
                     break;
                 case ShotResult.Missed:
-                    bannerColor = new Color(0.8f, 0.15f, 0.15f, 0.95f);
-                    subText = "El tiro se fue desviado";
+                    bannerColor = new Color(0.76f, 0.18f, 0.20f, 0.96f);
+                    subText = "El disparo salió desviado";
                     break;
             }
 
-            ShowMessageBanner(msg, subText, bannerColor, 2.0f);
+            ShowMessageBanner(msg, subText, bannerColor, 1.75f);
+        }
+
+        private void HandleRoundEnded(RoundEndSummary summary)
+        {
+            if (powerBarContainer != null) powerBarContainer.SetActive(false);
+            if (bannerResult != null) bannerResult.SetActive(false);
         }
 
         public void UpdatePowerBar(float normalizedPower)
+        {
+            UpdatePowerBarDetailed(normalizedPower, false, false);
+        }
+
+        public void UpdatePowerBarDetailed(float normalizedPower, bool isPerfect, bool isOverpower)
         {
             if (powerBarContainer == null || imgPowerFill == null) return;
 
@@ -227,6 +259,11 @@ namespace UltimatePenaltyCup.UI
                 powerBarContainer.SetActive(true);
                 imgPowerFill.fillAmount = normalizedPower;
                 imgPowerFill.color = powerGradient.Evaluate(normalizedPower);
+                if (txtPowerHint != null)
+                {
+                    txtPowerHint.text = isOverpower ? "¡EXCESO DE POTENCIA!" : (isPerfect ? "¡ZONA PERFECTA!" : "POTENCIA DE TIRO");
+                    txtPowerHint.color = isOverpower ? ColorMiss : (isPerfect ? new Color(1f, 0.80f, 0.22f) : Color.white);
+                }
             }
             else
             {

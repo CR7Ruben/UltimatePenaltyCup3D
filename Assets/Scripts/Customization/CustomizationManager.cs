@@ -62,10 +62,26 @@ namespace UltimatePenaltyCup.Customization
             }
 
             SaveManager.Instance.SelectStadium(stadium);
+            if (SaveManager.Instance.CurrentData != null)
+            {
+                SaveManager.Instance.CurrentData.useCustomStadiumOverride = true;
+                SaveManager.Instance.Save();
+            }
             AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
             OnStadiumSelected?.Invoke(stadium);
             Debug.Log($"[CustomizationManager] Estadio seleccionado: {stadium}");
             return true;
+        }
+
+        public void SetUseRoundStadiumAutomatic()
+        {
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentData != null)
+            {
+                SaveManager.Instance.CurrentData.useCustomStadiumOverride = false;
+                SaveManager.Instance.Save();
+                AudioManager.Instance?.PlaySfx(SfxType.S06_ButtonClick);
+                OnStadiumSelected?.Invoke(SelectedStadium);
+            }
         }
     }
 }

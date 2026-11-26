@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: PERFECT_STREAK
   title: Racha Perfecta
-  description: Marca 5 goles consecutivos sin fallar en una misma ronda.
+  description: "Completa una ronda sin fallar ning\xFAn disparo o logra 4 goles seguidos."
   rewardCoins: 500
   rewardPoints: 500
   icon: {fileID: 0}

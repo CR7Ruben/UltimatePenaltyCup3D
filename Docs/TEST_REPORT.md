@@ -1,117 +1,61 @@
-# Ultimate Penalty Cup 3D — Test Report
+# UltimatePenaltyCup3D — Informe de Pruebas y Validación Visual
 
-**Date**: 2026-11-25
-**Tester**: Automated (GameSystemsTestRunner) + Manual Verification
-**Unity Version**: 6000.6.4f1 (URP)
-**Platform**: Windows PC x64
-
----
-
-## Compilation Status
-
-| Check | Result |
-|---|---|
-| Assembly-CSharp.csproj | ✅ 0 Errors, 1 Warning (CS0414 unused field) |
-| Assembly-CSharp-Editor.csproj | ✅ 0 Errors, 0 Warnings |
-| Unity batch mode compile | ✅ Exit Code 0 |
-
-**Warning CS0414**: `PlayerController.isIdle` is assigned but never read — harmless, field reserved for future animation state checks.
+**Fecha:** 2026-11-25  
+**Motor:** Unity 6 (`6000.6.4f1`, URP)  
+**Plataforma:** Windows x64
 
 ---
 
-## Automated Unit Tests (GameSystemsTestRunner)
+## 1. Compilación de scripts
 
-| Test | Description | Status |
-|---|---|---|
-| Test 1 | SaveData default initialization | ✅ Pass |
-| Test 2 | Default round = 1 (Cantera) unlocked | ✅ Pass |
-| Test 3 | Default ball = Classic unlocked | ✅ Pass |
-| Test 4 | Default stadium = Cantera | ✅ Pass |
-| Test 5 | Coins non-negative validation | ✅ Pass |
-| Test 6 | Points non-negative validation | ✅ Pass |
-| Test 7 | Scoring tier priority (Corner > HighPower > Normal) | ✅ Pass |
-| Test 8 | Streak bonus calculation | ✅ Pass |
+- **`Logs/FullSetup2.log`:** `ExitCode: 0`, 0 errores de compilación. Se generaron mallas `SkinnedMesh` de 17 huesos, prefabs, previsualizaciones 3D reales, `MainMenu.unity`, `MatchScene.unity` y `EditorBuildSettings`.
+- **`Logs/Editor.log` (tras ediciones de pulido visual y pruebas):** `initialDomainReloadingComplete`, **0 errores `error CS`**.
 
 ---
 
-## Functional Verification
+## 2. Suite automatizada (`GameSystemsTestRunner`)
 
-### Core Gameplay
-| Feature | Status | Notes |
-|---|---|---|
-| Player movement (WASD) | ✅ Verified | Bounded to penalty approach zone |
-| Mouse aim + crosshair | ✅ Verified | 3D crosshair follows mouse on goal plane |
-| Power bar charge/release | ✅ Verified | Gradient green→yellow→red |
-| Ball launch physics | ✅ Verified | FIFA 0.43kg mass, correct trajectory |
-| Goal detection (trigger) | ✅ Verified | GoalDetector box trigger inside net |
-| Corner/precision scoring | ✅ Verified | Threshold-based hit position check |
-| Post hit detection | ✅ Verified | "Post" tag collision |
-| Goalkeeper AI idle shuffle | ✅ Verified | Sinusoidal side-to-side motion |
-| Goalkeeper reaction dive | ✅ Verified | Delay-based, full-body tilt animation |
-| 5-attempt round structure | ✅ Verified | PenaltyManager state machine |
-| Shot timeout | ✅ Verified | Auto-evaluates if ball stops |
-
-### Economy & Progression
-| Feature | Status | Notes |
-|---|---|---|
-| Coin earning on goals | ✅ Verified | Tiered: 100/125/150 coins |
-| Point earning on goals | ✅ Verified | Tiered: 100/150/200 points |
-| Streak bonus | ✅ Verified | +50 pts / +25 coins per streak level |
-| High score tracking | ✅ Verified | Updated only at round end |
-| Round unlock on victory | ✅ Verified | Sequential progression |
-| Ball purchase | ✅ Verified | Deducts coins, unlocks ball |
-| Stadium purchase | ✅ Verified | Deducts coins, unlocks stadium |
-| Ball equip | ✅ Verified | Changes ball material + trail color |
-| Stadium select | ✅ Verified | Changes grass material + lighting |
-| Save/Load persistence | ✅ Verified | JSON via PlayerPrefs |
-
-### UI
-| Feature | Status | Notes |
-|---|---|---|
-| Main menu navigation | ✅ Verified | 6 panels toggle correctly |
-| Round select cards | ✅ Verified | Lock overlays for unbeaten rounds |
-| Shop tabs (Balls/Stadiums) | ✅ Verified | Buy/Equip/Owned states |
-| Customization panel | ✅ Verified | Equip buttons for owned items |
-| Achievements panel | ✅ Verified | Locked/Unlocked badges |
-| Settings sliders | ✅ Verified | Music + SFX volume control |
-| Match HUD | ✅ Verified | Top bar + power bar + result banner |
-| Shot indicators | ✅ Verified | 5 circles: empty/goal(green)/miss(red)/saved(orange) |
-| Pause menu | ✅ Verified | Resume/Restart/Quit with volume sliders |
-| Round end screen | ✅ Verified | Victory/Defeat with stats |
-| Grand champion celebration | ✅ Verified | Round 5 win triggers trophy + confetti |
-| Secret code PENALTY2026 | ✅ Verified | +5000 coins in dev builds |
-
-### Visual Upgrades
-| Feature | Status | Notes |
-|---|---|---|
-| Rubén González humanoid model | ✅ Built | Multi-segment body with jersey, shorts, socks, boots |
-| Malágon goalkeeper model | ✅ Built | Bulkier build, large goalie gloves, wrist straps |
-| Stadium multi-tier grandstands | ✅ Built | 3-4 tier bleachers with crowd face panels + roof |
-| Floodlight towers | ✅ Built | 4 towers with pole, lamp housing, spot light |
-| LED perimeter boards | ✅ Built | 4 advertising boards around pitch |
-| Regulation pitch lines | ✅ Built | Penalty box, goal box, penalty arc, goal line |
-| Ball VFX particles | ✅ Built | Per-ball color sparks + dynamic trail |
-| Confetti particle system | ✅ Built | Stadium-level, activates for WorldCup venue |
-| 16 PNG textures | ✅ Present | Grass, jerseys, face, balls, net, stadium, trophy |
-| 18 URP materials | ✅ Present | All mapped to textures with correct settings |
+### Ejecución observada (`Logs/Tests.log` — previa al ajuste `BindForTest`)
+- **Aprobadas (7/13):**
+  - `1. Save Data Integrity and Backward Compatibility` — PASS
+  - `3. Score Processing & Rule Priority (No Double Dipping)` — PASS
+  - `9. ScriptableObjects 5-Round Difficulty & Rules Verification` — PASS
+  - `10. Character Prefabs: SkinnedMesh, Separated Face Material & Colliders` — PASS
+  - `11. Ball (0.22m) & Goal (7.32x2.44m) FIFA Proportions` — PASS
+  - `12. BuildSettings & Startup Scene Index (MainMenu=0, No SampleScene)` — PASS
+  - `13. MainMenu & MatchScene Wiring (GameManager, Camera, RoundEndUI)` — PASS
+- **Fallidas en `Logs/Tests.log` (6/13 por inicialización Edit Mode / `PlayerPrefs`):**
+  - Tests 2, 4, 5, 6, 7, 8 fallaron porque `SaveManager.Awake()` y `CurrencyManager.Awake()` no se ejecutan automáticamente en Edit Mode fuera de Play Mode.
+- **Corrección implementada y pendiente de re-ejecución:** Se añadieron `SaveManager.SetTestDataInMemory()` (sin tocar `PlayerPrefs` del usuario) y `CurrencyManager.BindForTest()` en `GameSystemsTestRunner.cs`. La re-ejecución batch (`Logs/TestsFinal.log`) quedó bloqueada porque Unity Editor GUI (PID `19884`) abrió el proyecto bloqueando `Temp/UnityLockfile`.
 
 ---
 
-## Known Issues
+## 3. Validación visual con capturas reales (`Docs/Screenshots/`)
 
-| Issue | Severity | Notes |
+Se capturaron **14 capturas reales en `1920×1080`** mediante `VisualValidationCapture.CaptureAllScreenshots` (`Logs/Screenshots.log`, `ExitCode: 0`) con GPU activa (`Intel(R) UHD Graphics`) e inspeccionadas visualmente:
+
+| Captura | Estado inspeccionado | Hallazgos / Acciones tomadas |
 |---|---|---|
-| Unity license warning in batch mode | Low | "Access token is unavailable" — cosmetic, does not affect build |
-| `abort_threads` on batch exit | Low | Unity internal thread cleanup, no functional impact |
-| Characters use Unity primitives | Medium | Stylized arcade look; for higher fidelity, import .fbx models |
+| `01_MainMenu.png` | Estadio 3D y menú | Se corrigió pivot de `TopRightBadges` para mostrar Monedas + Récord, fondo de escudo sin bordes grises y estadio `Professional` (en `ProjectSetupBuilder.cs`, pendiente de regeneración de escena). |
+| `02_RoundSelect.png` | 5 tarjetas con preview real | Layout limpio sin superposición de `BLOQUEADO`; muestra vistas reales de los estadios. |
+| `03_Shop_Balls.png` | 5 balones 3D reales | Se cambió fondo de `AssetPreviewRenderer` a transparente (`Color.clear`) para eliminar recuadros oscuros (pendiente de re-renderizado). |
+| `04_Shop_Stadiums.png` | 4 estadios reales | Tarjetas limpias, alineadas, con precios e imágenes reales. |
+| `05_Customization.png` | Inspector + cuadrícula | Se agregó `isCustomizationOnly` (`BLOQUEADO` para no adquiridos) y se asignó sprite inicial a `ImgActivePreview` (pendiente de regeneración). |
+| `06_Achievements.png` | Lista de logros | Se amplió contenedor vertical a `830 px` para evitar recorte de la tarjeta 7 (`Leyenda`) y se pobló el progreso (pendiente de regeneración). |
+| `07_Settings.png` | Controles de opciones | Todas las filas alineadas limpiamente sin superposición ni recortes. |
+| `08_Match_Gameplay.png` | Cámara deportiva y HUD | HUD broadcast claro; se corrigió inversión horizontal de UV `#10` en espalda, mangas y tamaño de punto penal `0.18 m` en `HumanoidMeshBuilder.cs` / `CharacterAndStadiumUpgrader.cs` (pendiente de regeneración). |
+| `08b_Character_Ruben_CloseUp.png` | Close-up Rubén 3D | Anatomía unificada `SkinnedMesh` sin extremidades flotantes y rostro únicamente en cabeza; se refinaron botines en `HumanoidMeshBuilder.cs`. |
+| `08c_Character_Malagon_CloseUp.png` | Close-up Malágon 3D | Guantes, shorts, calcetas y portero orientados al tirador con colliders activos. |
+| `09_Match_Pause.png` | Modal de pausa | Limpio y centrado, sin superposición de controles. |
+| `10_Match_Victory.png` | Pantalla de victoria | Muestra ronda, goles, intentos, puntuación, monedas, récord y botones `SIGUIENTE RONDA` / `REPETIR RONDA` / `VOLVER AL MENÚ`. |
+| `11_Match_Defeat.png` | Pantalla de derrota | Clara, con `REINTENTAR` y `VOLVER AL MENÚ`. |
+| `12_Match_GrandFinal.png` | Pantalla Campeón | Trofeo dorado, resumen final, logros y botones `VOLVER A JUGAR` / `VER LOGROS` / `VOLVER AL MENÚ`. |
 
 ---
 
-## Build Verification
+## 4. Bloqueo pendiente y pruebas manuales pendientes
 
-| Check | Result |
-|---|---|
-| MainMenu.unity in Build Settings (Scene 0) | ✅ |
-| MatchScene.unity in Build Settings (Scene 1) | ✅ |
-| Target: StandaloneWindows64 | ✅ |
-| Output: Builds/Windows/UltimatePenaltyCup3D.exe | Pending (build phase) |
+- **Bloqueo técnico real:** Unity Editor GUI (PID `19884`) mantiene abierto el proyecto (`Temp/UnityLockfile`), impidiendo ejecutar en `-batchmode` la regeneración final (`FullSetup3`), el re-test (`13/13`), las capturas actualizadas y la compilación final de `Builds/Windows/UltimatePenaltyCup3D.exe` (el ejecutable actual en disco data de `2026-11-25 17:33:47`, anterior a las correcciones de la sesión).
+- **Pendiente tras cerrar Unity Editor GUI (o ejecutar desde el menú dentro del Editor):**
+  1. Ejecutar `ExecuteCompleteSetup` -> `RunAllTests` (confirmar `13/13 PASS`) -> `CaptureAllScreenshots` -> `BuildWindowsStandalone`.
+  2. Ejecutar smoke test manual/runtime de `Builds/Windows/UltimatePenaltyCup3D.exe` verificando jugabilidad en vivo (paradas de Malágon en rondas 1–5, fin anticipado de ronda y flujo completo de tienda/guardado).

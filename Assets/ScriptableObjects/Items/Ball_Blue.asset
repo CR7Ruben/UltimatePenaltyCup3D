@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ballType: 1
   displayName: "Bal\xF3n Azul"
-  description: "Bal\xF3n con tonos el\xE9ctricos y estela cian brillante."
+  description: "Edici\xF3n el\xE9ctrica con estela cian brillante."
   price: 500
   primaryColor: {r: 0.1, g: 0.6, b: 1, a: 1}
   secondaryColor: {r: 0, g: 0, b: 1, a: 1}
   trailColor: {r: 0, g: 1, b: 1, a: 1}
   material: {fileID: 2100000, guid: 62bad4754af3412469a5e5aa916e86de, type: 2}
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 013c3c911c45a384d9886cd862a63efb, type: 3}
